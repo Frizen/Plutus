@@ -24,7 +24,7 @@
 		122813F9D0EE911DFDDBFF8D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		15DC166C51AF1BAB87EBF198 /* FeishuBitableService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeishuBitableService.swift; sourceTree = "<group>"; };
 		209C2709AAB2B3DDE353AA00 /* ExpenseCaptureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseCaptureApp.swift; sourceTree = "<group>"; };
-		2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExpenseCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ExpenseCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		54244111B9A117B06CE7847B /* AnalyzeExpenseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeExpenseIntent.swift; sourceTree = "<group>"; };
 		824A2988FBC05373274B37B9 /* ExpenseCapture.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ExpenseCapture.entitlements; sourceTree = "<group>"; };
 		93150EB6F7A1762AF201FD2F /* ExpenseRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseRecord.swift; sourceTree = "<group>"; };
@@ -143,6 +143,7 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					956B42C178AFB64CFE890C62 = {
+						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -272,7 +273,6 @@
 				CODE_SIGN_ENTITLEMENTS = ExpenseCapture/ExpenseCapture.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = CVVVNK6HVK;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = ExpenseCapture/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -354,7 +354,6 @@
 				CODE_SIGN_ENTITLEMENTS = ExpenseCapture/ExpenseCapture.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = CVVVNK6HVK;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = ExpenseCapture/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
