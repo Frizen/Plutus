@@ -31,6 +31,29 @@ targets:
       - path: ExpenseCapture/Info.plist
     info:
       path: ExpenseCapture/Info.plist
+      properties:
+        CFBundleDisplayName: Plutus
+        UILaunchScreen: {}
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+          NSExceptionDomains:
+            open.bigmodel.cn:
+              NSExceptionAllowsInsecureHTTPLoads: false
+              NSIncludesSubdomains: true
+            open.feishu.cn:
+              NSExceptionAllowsInsecureHTTPLoads: false
+              NSIncludesSubdomains: true
+        NSUserActivityTypes:
+          - $(PRODUCT_BUNDLE_IDENTIFIER).AnalyzeExpenseIntent
+        UIBackgroundModes:
+          - processing
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.expensecapture.app
