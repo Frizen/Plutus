@@ -86,21 +86,23 @@ class GLMVisionService {
             throw GLMVisionError.apiKeyMissing
         }
 
-        let resizedImage = resizeImage(image, maxDimension: maxImageDimension)
-
-        guard let imageData = resizedImage.jpegData(compressionQuality: 0.85) else {
-            throw GLMVisionError.imageEncodingFailed
-        }
-
-        let base64String: String
-        if imageData.count > 1_000_000 {
-            guard let compressedData = resizedImage.jpegData(compressionQuality: 0.5) else {
+        // 图片压缩移到后台线程，避免阻塞协程
+        let base64String = try await Task.detached(priority: .userInitiated) {
+            let resized = self.resizeImage(image, maxDimension: self.maxImageDimension)
+            guard let data = resized.jpegData(compressionQuality: 0.85) else {
                 throw GLMVisionError.imageEncodingFailed
             }
-            base64String = compressedData.base64EncodedString()
-        } else {
-            base64String = imageData.base64EncodedString()
-        }
+            let finalData: Data
+            if data.count > 1_000_000 {
+                guard let compressed = resized.jpegData(compressionQuality: 0.5) else {
+                    throw GLMVisionError.imageEncodingFailed
+                }
+                finalData = compressed
+            } else {
+                finalData = data
+            }
+            return finalData.base64EncodedString()
+        }.value
 
         return try await callGLMAPI(imageBase64: base64String, apiKey: apiKey)
     }
@@ -121,7 +123,7 @@ class GLMVisionService {
         6. amount 必须是正数。微信/支付宝等 App 用"-¥6.90"表示支出，"-"只是方向标记，amount 应填 6.9，不要填负数
 
         商户名称识别规则（按优先级从高到低）：
-        【优先级1】页面中存在圆形 logo 图标，且紧邻该图标正下方或正上方有一行短文本（通常是商户品牌名、店名或收款方姓名），优先将该文本识别为商户名称，这是最可靠的信号
+        【优先级1】页面中存在圆形 logo 图标，且紧邻该图标正下方或右方有一行短文本（通常是商户品牌名、店名或收款方姓名），优先将该文本识别为商户名称，这是最可靠的信号
         【优先级2】位于金额正上方或正下方的短文本（通常是商户名或收款方名称）
         【优先级3】页面中明确标注"商户名称""收款方""店铺名称""商家"等字段后面跟随的文本
         【优先级4】订单标题、收款备注中出现的商户名
@@ -131,25 +133,9 @@ class GLMVisionService {
         - 餐饮：餐厅、饭店、咖啡、奶茶、外卖、烧烤、火锅、快餐、食堂、面包、蛋糕、甜品、便利店、超市食品区，以及品牌如：麦当劳、肯德基、星巴克、瑞幸、喜茶、奈雪、蜜雪冰城、古茗、茶百道、沪上阿姨、一点点、海底捞、西贝、太二、美团外卖、饿了么
         - 交通：滴滴、出租车、高铁、火车、飞机、机票、地铁、公交、加油站、ETC、停车、顺风车、曹操出行、嘀嗒、T3出行、12306
         - 购物：淘宝、天猫、京东、拼多多、抖音商城、唯品会、得物、SHEIN、超市、商场、便利店（非食品）、服装、电器
-        - 娱乐：电影、KTV、游戏、演唱会、景区、剧本杀、密室、视频会员、音乐会员、Steam
+        - 娱乐：电影、KTV、游戏、演唱会、景区、剧本杀、密室、视频会员、音乐会员、Steam、体育、运动
         - 医疗：医院、药店、诊所、体检、药品、医保
         - 其他：无法归入以上类别时才选「其他」
-
-        支付渠道判断规则（根据截图的 App 界面风格、顶部导航栏、页面元素判断）：
-        - 支付渠道必须且只能从以下固定选项中选择一个：微信、支付宝、美团、饿了么、京东、淘宝、天猫、拼多多、抖音、携程、同程、滴滴、未知
-        - 不得填写上述列表之外的任何值，即使截图中出现了其他平台名称（如 T3出行、高德、哈啰等），这些应作为商户名称，支付渠道仍需从上述列表选择
-        - 微信：页面顶部显示"微信支付"/"转账"/"收付款"，绿色主题，或收款方显示微信头像/昵称；若页面出现"财付通"字样也判定为微信
-        - 支付宝：页面显示"支付宝"字样，蓝色主题，或"芝麻信用"/"花呗"/"余额宝"等
-        - 美团：页面含"美团"字样、黄色主题，或外卖/到店订单
-        - 饿了么：蓝色主题外卖订单，含"饿了么"字样
-        - 京东：页面含"京东"字样，红色主题，或"京东金融"/"白条"
-        - 淘宝/天猫：页面含"淘宝"/"天猫"字样，橙色主题
-        - 拼多多：页面含"拼多多"字样
-        - 抖音：页面含"抖音"/"抖音商城"字样
-        - 携程：页面含"携程"字样
-        - 同程：页面含"同程"字样
-        - 滴滴：页面含"滴滴"字样，橙色主题
-        - 无法判断时填"未知"
 
         请严格按照以下 JSON 格式返回，不要包含任何其他文字或 markdown 标记：
         {
@@ -157,7 +143,6 @@ class GLMVisionService {
           "currency": <货币代码，如 CNY/USD/EUR，默认 CNY>,
           "category": <消费类型，只能是：餐饮/交通/购物/娱乐/医疗/其他 之一>,
           "merchant": <商户名称，如无则为"未知商户">,
-          "paymentChannel": <支付渠道，如：微信/支付宝/京东/美团/饿了么/淘宝/天猫/拼多多/抖音/携程/同程/滴滴/未知>,
           "transactionDate": <消费时间字符串，格式为 yyyy-MM-dd HH:mm，必须精确到时和分，如无则为null>,
           "notes": <备注信息，如无则为null>
         }

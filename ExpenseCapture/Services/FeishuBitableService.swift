@@ -146,10 +146,9 @@ class FeishuBitableService {
         // 构建飞书多维表格字段
         // 字段名需与用户在飞书中创建的字段名保持一致
         var fields: [String: BitableFieldValue] = [
-            fieldNames.amount:         .number(expense.amount),
-            fieldNames.category:       .string(expense.category),
-            fieldNames.merchant:       .string(expense.merchant),
-            fieldNames.paymentChannel: .string(expense.paymentChannel)
+            fieldNames.amount:   .number(expense.amount),
+            fieldNames.category: .string(expense.category),
+            fieldNames.merchant: .string(expense.merchant)
         ]
 
         if let dateStr = expense.transactionDate, !dateStr.isEmpty {
@@ -231,7 +230,7 @@ class FeishuBitableService {
             throw FeishuError.configMissing
         }
 
-        let token = try await fetchFreshToken(appID: appID, appSecret: appSecret)
+        _ = try await fetchFreshToken(appID: appID, appSecret: appSecret)
         return "连接成功，Token 获取正常 ✓"
     }
 }
@@ -239,19 +238,17 @@ class FeishuBitableService {
 // MARK: - Field Names
 
 struct FeishuFieldNames {
-    let amount:         String
-    let category:       String
-    let merchant:       String
-    let paymentChannel: String
-    let date:           String
-    let notes:          String
+    let amount:   String
+    let category: String
+    let merchant: String
+    let date:     String
+    let notes:    String
 
     init(settings: AppSettings) {
-        self.amount         = settings.fieldAmount
-        self.category       = settings.fieldCategory
-        self.merchant       = settings.fieldMerchant
-        self.paymentChannel = settings.fieldPaymentChannel
-        self.date           = settings.fieldDate
-        self.notes          = settings.fieldNotes
+        self.amount   = settings.fieldAmount
+        self.category = settings.fieldCategory
+        self.merchant = settings.fieldMerchant
+        self.date     = settings.fieldDate
+        self.notes    = settings.fieldNotes
     }
 }

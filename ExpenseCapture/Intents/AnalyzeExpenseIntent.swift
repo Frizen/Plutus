@@ -29,10 +29,7 @@ struct AnalyzeExpenseIntent: AppIntent {
 
         // 2. 解码图片
         log.log("正在读取截图...", level: .info)
-        guard let imageData = try? screenshot.data else {
-            log.log("screenshot.data 为 nil，截图文件读取失败", level: .error)
-            return .result(dialog: "❌ 无法读取截图文件")
-        }
+        let imageData = screenshot.data
         log.log("截图数据大小: \(imageData.count / 1024) KB", level: .debug)
 
         guard let image = UIImage(data: imageData) else {
@@ -67,9 +64,6 @@ struct AnalyzeExpenseIntent: AppIntent {
         if extraction.category.isEmpty || extraction.category == "其他" {
             log.log("category 未能精确识别，使用默认值「其他」", level: .warning)
         }
-        if extraction.paymentChannel == nil || extraction.paymentChannel == "未知" {
-            log.log("paymentChannel 未能识别，使用默认值「未知」", level: .warning)
-        }
         if extraction.transactionDate == nil {
             log.log("transactionDate 未提取到，将使用当前时间", level: .warning)
         }
@@ -80,7 +74,6 @@ struct AnalyzeExpenseIntent: AppIntent {
         let record = ExpenseRecord(from: extraction)
 
         // 6. 写入飞书
-        var feishuResult = ""
         if settings.isFeishuConfigured {
             log.log("正在写入飞书 Bitable...", level: .info)
             let feishuService = FeishuBitableService()
@@ -93,14 +86,11 @@ struct AnalyzeExpenseIntent: AppIntent {
                     tableID: settings.tableID,
                     fieldNames: FeishuFieldNames(settings: settings)
                 )
-                feishuResult = " ✓ 已写入飞书"
                 log.log("飞书写入成功 ✓", level: .success)
             } catch {
-                feishuResult = " ⚠️ 飞书写入失败: \(error.localizedDescription)"
                 log.log("飞书写入失败: \(error.localizedDescription)", level: .error)
             }
         } else {
-            feishuResult = " (飞书未配置，仅本地保存)"
             log.log("飞书未配置，跳过写入", level: .warning)
         }
 

@@ -75,7 +75,6 @@ struct SettingsView: View {
                     LabeledTextField(label: "金额",     placeholder: "金额",     text: $settings.fieldAmount)
                     LabeledTextField(label: "消费类型", placeholder: "消费类型", text: $settings.fieldCategory)
                     LabeledTextField(label: "商户",     placeholder: "商户",     text: $settings.fieldMerchant)
-                    LabeledTextField(label: "支付渠道", placeholder: "支付渠道", text: $settings.fieldPaymentChannel)
                     LabeledTextField(label: "日期",     placeholder: "日期",     text: $settings.fieldDate)
                     LabeledTextField(label: "备注",     placeholder: "备注",     text: $settings.fieldNotes)
                 } header: {
@@ -261,7 +260,7 @@ struct ExpenseRecordRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.merchant)
                     .font(.subheadline).fontWeight(.medium)
-                Text("\(record.category) · \(record.paymentChannel) · \(record.displayDate)")
+                Text("\(record.category) · \(record.displayDate)")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

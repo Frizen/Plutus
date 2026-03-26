@@ -17,7 +17,6 @@ class AppSettings: ObservableObject {
     @AppStorage("field_amount")       var fieldAmount: String      = "金额"
     @AppStorage("field_category")     var fieldCategory: String    = "消费类型"
     @AppStorage("field_merchant")     var fieldMerchant: String    = "商户"
-    @AppStorage("field_payment_channel") var fieldPaymentChannel: String = "支付渠道"
     @AppStorage("field_date")         var fieldDate: String        = "消费时间"
     @AppStorage("field_notes")        var fieldNotes: String       = "备注"
 

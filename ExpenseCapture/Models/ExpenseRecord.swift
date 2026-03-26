@@ -7,7 +7,6 @@ struct ExpenseExtraction: Codable {
     let currency: String
     let category: String
     let merchant: String
-    let paymentChannel: String?    // 支付渠道：微信/支付宝/京东/拼多多等
     let transactionDate: String?
     let notes: String?
 }
@@ -20,7 +19,6 @@ struct ExpenseRecord: Codable, Identifiable {
     let currency: String
     let category: String
     let merchant: String
-    let paymentChannel: String
     let transactionDate: String?
     let notes: String?
     let recordedAt: Date
@@ -31,7 +29,6 @@ struct ExpenseRecord: Codable, Identifiable {
         self.currency = extraction.currency.isEmpty ? "CNY" : extraction.currency
         self.category = extraction.category.isEmpty ? "其他" : extraction.category
         self.merchant = extraction.merchant.isEmpty ? "未知商户" : extraction.merchant
-        self.paymentChannel = extraction.paymentChannel ?? "未知"
         self.transactionDate = extraction.transactionDate
         self.notes = extraction.notes
         self.recordedAt = Date()
