@@ -1,6 +1,5 @@
 import AppIntents
 import UIKit
-import UserNotifications
 
 // MARK: - App Intent
 
@@ -51,19 +50,16 @@ struct AnalyzeExpenseIntent: AppIntent {
             log.log("GLM 返回 amount=\(extraction.amount), merchant=\(extraction.merchant), category=\(extraction.category)", level: .debug)
         } catch {
             log.log("GLM 调用失败: \(error.localizedDescription)", level: .error)
-            await sendNotification(id: UUID().uuidString, title: "识别失败", body: error.localizedDescription)
             return .result(dialog: "❌ 识别失败: \(error.localizedDescription)")
         }
 
         // 4. 检查核心字段：amount + merchant 两者都有才继续
         guard extraction.amount != 0 else {
             log.log("amount=0，模型判断截图中无消费信息（merchant=\(extraction.merchant)）", level: .warning)
-            await sendNotification(id: UUID().uuidString, title: "未检测到消费", body: "截图中未发现消费信息")
             return .result(dialog: "ℹ️ 截图中未检测到消费信息")
         }
         guard !extraction.merchant.isEmpty, extraction.merchant != "未知商户" else {
             log.log("merchant 未提取到，跳过写入", level: .warning)
-            await sendNotification(id: UUID().uuidString, title: "未检测到消费", body: "无法识别商户名称")
             return .result(dialog: "ℹ️ 无法识别商户名称，请重试")
         }
 
@@ -112,18 +108,10 @@ struct AnalyzeExpenseIntent: AppIntent {
         await saveLocalRecord(record)
         log.log("本地记录已保存", level: .success)
 
-        // 8. 通知 + 返回
-        let notificationID = UUID().uuidString
-        await sendNotification(
-            id: notificationID,
-            title: record.displayAmount,
-            body: record.merchant
-        )
-        // 2 秒后自动移除通知
-        await removeNotification(id: notificationID, afterSeconds: 2)
-
+        // 8. 返回结果给快捷指令
+        let dialogText = "✅已记账 \(record.displayAmount) \(record.merchant)"
         log.log("▶️ Intent 完成", level: .success)
-        return .result(dialog: IntentDialog(stringLiteral: ""))
+        return .result(dialog: IntentDialog(stringLiteral: dialogText))
     }
 
     // MARK: - Helpers
@@ -132,25 +120,6 @@ struct AnalyzeExpenseIntent: AppIntent {
     private func saveLocalRecord(_ record: ExpenseRecord) {
         let store = ExpenseRecordStore()
         store.add(record)
-    }
-
-    private func sendNotification(id: String, title: String, body: String) async {
-        let center = UNUserNotificationCenter.current()
-        let settings = await center.notificationSettings()
-        if settings.authorizationStatus != .authorized {
-            try? await center.requestAuthorization(options: [.alert, .sound])
-        }
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
-        try? await center.add(request)
-    }
-
-    private func removeNotification(id: String, afterSeconds seconds: TimeInterval) async {
-        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [id])
     }
 }
 

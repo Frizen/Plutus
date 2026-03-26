@@ -4,7 +4,6 @@ import SwiftUI
 
 struct SettingsView: View {
     @StateObject private var settings = AppSettings()
-    @StateObject private var recordStore = ExpenseRecordStore()
 
     @State private var isTestingGLM = false
     @State private var isTestingFeishu = false
@@ -92,32 +91,10 @@ struct SettingsView: View {
                 } header: {
                     Label("Action Button 配置", systemImage: "record.circle")
                 }
-
-                // MARK: 历史记录
-                Section {
-                    if recordStore.records.isEmpty {
-                        ContentUnavailableView(
-                            "暂无记录",
-                            systemImage: "tray",
-                            description: Text("使用 Action Button 截屏后将自动记录消费")
-                        )
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical)
-                        .listRowBackground(Color.clear)
-                    } else {
-                        ForEach(recordStore.records) { record in
-                            ExpenseRecordRow(record: record)
-                        }
-                        Button("清空记录", role: .destructive) {
-                            recordStore.clear()
-                        }
-                    }
-                } header: {
-                    Label("最近 \(min(recordStore.records.count, 20)) 条记录", systemImage: "clock.arrow.circlepath")
-                }
             }
-            .navigationTitle("Plutus")
+            .navigationTitle("配置")
             .navigationBarTitleDisplayMode(.large)
+            .safeAreaInset(edge: .top) { Color.clear.frame(height: 8) }
         }
     }
 

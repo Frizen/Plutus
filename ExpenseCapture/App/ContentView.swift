@@ -1,9 +1,13 @@
 import SwiftUI
-import UserNotifications
 
 struct ContentView: View {
     var body: some View {
         TabView {
+            RecordsView()
+                .tabItem {
+                    Label("记录", systemImage: "list.bullet")
+                }
+
             SettingsView()
                 .tabItem {
                     Label("配置", systemImage: "gearshape")
@@ -13,10 +17,6 @@ struct ContentView: View {
                 .tabItem {
                     Label("日志", systemImage: "terminal")
                 }
-        }
-        .onAppear {
-            UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound]) { _, _ in }
         }
     }
 }

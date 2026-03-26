@@ -48,6 +48,7 @@ struct LogView: View {
             }
             .navigationTitle("日志")
             .navigationBarTitleDisplayMode(.large)
+            .safeAreaInset(edge: .top) { Color.clear.frame(height: 8) }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     // 复制全部

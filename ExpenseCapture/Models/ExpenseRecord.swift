@@ -68,7 +68,7 @@ class ExpenseRecordStore: ObservableObject {
     @Published var records: [ExpenseRecord] = []
 
     private let storageKey = "expense_records"
-    private let maxRecords = 20
+    private let maxRecords = 100
 
     init() {
         load()

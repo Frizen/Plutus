@@ -8,13 +8,13 @@
 
 /* Begin PBXBuildFile section */
 		25AC09A94A6C83A805DDA943 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FBBA43155372231E4B86F6 /* SettingsView.swift */; };
+		297D631CBABB82013B9D2C91 /* RecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F9BDBB231287BCE906A1B /* RecordsView.swift */; };
 		473CE399EEB099D2368B59CA /* ExpenseCaptureApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 209C2709AAB2B3DDE353AA00 /* ExpenseCaptureApp.swift */; };
 		81AC3D4DEB6C3EB55AAF0C5C /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0064D04BC666479A59DC651 /* LogView.swift */; };
 		922FD1EE2E418887E240B9BC /* IntentLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F084DC6D3603B05311DF2E /* IntentLogger.swift */; };
 		962B531BEE2605A6871F37DC /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 954B80F58D5BF59A2424342E /* AppSettings.swift */; };
 		BBE78BB2C5249FFFE499418B /* ExpenseRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93150EB6F7A1762AF201FD2F /* ExpenseRecord.swift */; };
 		D6C15918552FFC8662A94961 /* GLMVisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B6A4250430573EFE55A1F3 /* GLMVisionService.swift */; };
-		DE6A7CB9D3DAB4F6C2ACF65D /* ExpenseCapture.xcodeproj in Resources */ = {isa = PBXBuildFile; fileRef = 9F08480B9CF9220FA542BE53 /* ExpenseCapture.xcodeproj */; };
 		E59A5AAEF7B5EEBEF67C5BE2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 122813F9D0EE911DFDDBFF8D /* Assets.xcassets */; };
 		F58B5A62856F156C746F57CB /* AnalyzeExpenseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54244111B9A117B06CE7847B /* AnalyzeExpenseIntent.swift */; };
 		F6638578D66061D788FC8177 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F26C015F1210C7C1575242 /* ContentView.swift */; };
@@ -25,17 +25,17 @@
 		122813F9D0EE911DFDDBFF8D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		15DC166C51AF1BAB87EBF198 /* FeishuBitableService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeishuBitableService.swift; sourceTree = "<group>"; };
 		209C2709AAB2B3DDE353AA00 /* ExpenseCaptureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseCaptureApp.swift; sourceTree = "<group>"; };
-		2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ExpenseCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExpenseCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		54244111B9A117B06CE7847B /* AnalyzeExpenseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeExpenseIntent.swift; sourceTree = "<group>"; };
 		824A2988FBC05373274B37B9 /* ExpenseCapture.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ExpenseCapture.entitlements; sourceTree = "<group>"; };
 		93150EB6F7A1762AF201FD2F /* ExpenseRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseRecord.swift; sourceTree = "<group>"; };
 		94FBBA43155372231E4B86F6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		954B80F58D5BF59A2424342E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		9F08480B9CF9220FA542BE53 /* ExpenseCapture.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = ExpenseCapture.xcodeproj; sourceTree = "<group>"; };
 		A7F084DC6D3603B05311DF2E /* IntentLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentLogger.swift; sourceTree = "<group>"; };
 		B0064D04BC666479A59DC651 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		B5F26C015F1210C7C1575242 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E3B6A4250430573EFE55A1F3 /* GLMVisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GLMVisionService.swift; sourceTree = "<group>"; };
+		F33F9BDBB231287BCE906A1B /* RecordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -87,6 +87,7 @@
 				B5F26C015F1210C7C1575242 /* ContentView.swift */,
 				209C2709AAB2B3DDE353AA00 /* ExpenseCaptureApp.swift */,
 				B0064D04BC666479A59DC651 /* LogView.swift */,
+				F33F9BDBB231287BCE906A1B /* RecordsView.swift */,
 				94FBBA43155372231E4B86F6 /* SettingsView.swift */,
 			);
 			path = App;
@@ -97,7 +98,6 @@
 			children = (
 				122813F9D0EE911DFDDBFF8D /* Assets.xcassets */,
 				824A2988FBC05373274B37B9 /* ExpenseCapture.entitlements */,
-				9F08480B9CF9220FA542BE53 /* ExpenseCapture.xcodeproj */,
 				DDB6EDFC57D85A5D2B8BE111 /* App */,
 				5AA79C36DFA692753B9389AA /* Intents */,
 				65024743E82C45DF40D36261 /* Models */,
@@ -146,7 +146,6 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					956B42C178AFB64CFE890C62 = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -176,7 +175,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E59A5AAEF7B5EEBEF67C5BE2 /* Assets.xcassets in Resources */,
-				DE6A7CB9D3DAB4F6C2ACF65D /* ExpenseCapture.xcodeproj in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -196,6 +194,7 @@
 				D6C15918552FFC8662A94961 /* GLMVisionService.swift in Sources */,
 				922FD1EE2E418887E240B9BC /* IntentLogger.swift in Sources */,
 				81AC3D4DEB6C3EB55AAF0C5C /* LogView.swift in Sources */,
+				297D631CBABB82013B9D2C91 /* RecordsView.swift in Sources */,
 				25AC09A94A6C83A805DDA943 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -277,6 +276,7 @@
 				CODE_SIGN_ENTITLEMENTS = ExpenseCapture/ExpenseCapture.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = CVVVNK6HVK;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = ExpenseCapture/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -358,6 +358,7 @@
 				CODE_SIGN_ENTITLEMENTS = ExpenseCapture/ExpenseCapture.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = CVVVNK6HVK;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = ExpenseCapture/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
