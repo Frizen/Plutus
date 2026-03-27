@@ -8,6 +8,7 @@ enum FeishuError: LocalizedError {
     case networkError(Error)
     case invalidResponse(Int, String)
     case encodingFailed
+    case decodingFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,7 @@ enum FeishuError: LocalizedError {
         case .networkError(let e): return "网络错误: \(e.localizedDescription)"
         case .invalidResponse(let code, let msg): return "飞书 API 错误 [\(code)]: \(msg)"
         case .encodingFailed: return "请求编码失败"
+        case .decodingFailed(let msg): return "响应解析失败: \(msg)"
         }
     }
 }
@@ -90,13 +92,22 @@ class FeishuBitableService {
 
     // MARK: - Public API
 
-    func addRecord(expense: ExpenseRecord, appID: String, appSecret: String, appToken: String, tableID: String, fieldNames: FeishuFieldNames) async throws {
+    func addRecord(expense: ExpenseRecord, appID: String, appSecret: String, appToken: String, tableID: String, fieldNames: FeishuFieldNames) async throws -> String {
         guard !appID.isEmpty, !appSecret.isEmpty, !appToken.isEmpty, !tableID.isEmpty else {
             throw FeishuError.configMissing
         }
 
         let token = try await getValidToken(appID: appID, appSecret: appSecret)
-        try await writeRecord(expense: expense, token: token, appToken: appToken, tableID: tableID, fieldNames: fieldNames)
+        return try await writeRecord(expense: expense, token: token, appToken: appToken, tableID: tableID, fieldNames: fieldNames)
+    }
+
+    func updateRecord(recordID: String, detail: DetailExtraction, appID: String, appSecret: String, appToken: String, tableID: String, fieldNames: FeishuFieldNames) async throws {
+        guard !appID.isEmpty, !appSecret.isEmpty, !appToken.isEmpty, !tableID.isEmpty else {
+            throw FeishuError.configMissing
+        }
+
+        let token = try await getValidToken(appID: appID, appSecret: appSecret)
+        try await patchRecord(recordID: recordID, detail: detail, token: token, appToken: appToken, tableID: tableID, fieldNames: fieldNames)
     }
 
     // MARK: - Token Management
@@ -137,29 +148,21 @@ class FeishuBitableService {
 
     // MARK: - Write Record
 
-    private func writeRecord(expense: ExpenseRecord, token: String, appToken: String, tableID: String, fieldNames: FeishuFieldNames) async throws {
+    private func writeRecord(expense: ExpenseRecord, token: String, appToken: String, tableID: String, fieldNames: FeishuFieldNames) async throws -> String {
         let urlString = "\(bitableEndpoint)/\(appToken)/tables/\(tableID)/records"
         guard let url = URL(string: urlString) else {
             throw FeishuError.encodingFailed
         }
 
-        // 构建飞书多维表格字段
-        // 字段名需与用户在飞书中创建的字段名保持一致
         var fields: [String: BitableFieldValue] = [
             fieldNames.amount:   .number(expense.amount),
-            fieldNames.category: .string(expense.category),
             fieldNames.merchant: .string(expense.merchant)
         ]
 
         if let dateStr = expense.transactionDate, !dateStr.isEmpty {
             fields[fieldNames.date] = .int(parseToTimestampMs(dateStr))
         } else {
-            // 无交易时间时用当前时间
             fields[fieldNames.date] = .int(Int(Date().timeIntervalSince1970 * 1000))
-        }
-
-        if let notes = expense.notes, !notes.isEmpty {
-            fields[fieldNames.notes] = .string(notes)
         }
 
         let requestBody = BitableRecordRequest(fields: fields)
@@ -175,7 +178,50 @@ class FeishuBitableService {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw FeishuError.networkError(URLError(.badServerResponse))
         }
+        guard httpResponse.statusCode == 200 else {
+            let bodyStr = String(data: data, encoding: .utf8) ?? ""
+            throw FeishuError.invalidResponse(httpResponse.statusCode, bodyStr)
+        }
 
+        let recordResponse = try JSONDecoder().decode(BitableRecordResponse.self, from: data)
+        guard recordResponse.code == 0 else {
+            throw FeishuError.invalidResponse(recordResponse.code, recordResponse.msg)
+        }
+
+        guard let recordID = recordResponse.data?.record?.record_id else {
+            throw FeishuError.decodingFailed("未返回 record_id")
+        }
+        return recordID
+    }
+
+    private func patchRecord(recordID: String, detail: DetailExtraction, token: String, appToken: String, tableID: String, fieldNames: FeishuFieldNames) async throws {
+        let urlString = "\(bitableEndpoint)/\(appToken)/tables/\(tableID)/records/\(recordID)"
+        guard let url = URL(string: urlString) else {
+            throw FeishuError.encodingFailed
+        }
+
+        let sub = detail.subCategory.isEmpty ? "其他" : detail.subCategory
+        var fields: [String: BitableFieldValue] = [
+            fieldNames.subCategory:     .string(sub),
+            fieldNames.primaryCategory: .string(primaryCategory(from: sub))
+        ]
+        if let notes = detail.notes, !notes.isEmpty {
+            fields[fieldNames.notes] = .string(notes)
+        }
+
+        let requestBody = BitableRecordRequest(fields: fields)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(requestBody)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw FeishuError.networkError(URLError(.badServerResponse))
+        }
         guard httpResponse.statusCode == 200 else {
             let bodyStr = String(data: data, encoding: .utf8) ?? ""
             throw FeishuError.invalidResponse(httpResponse.statusCode, bodyStr)
@@ -238,17 +284,19 @@ class FeishuBitableService {
 // MARK: - Field Names
 
 struct FeishuFieldNames {
-    let amount:   String
-    let category: String
-    let merchant: String
-    let date:     String
-    let notes:    String
+    let amount:          String
+    let primaryCategory: String
+    let subCategory:     String
+    let merchant:        String
+    let date:            String
+    let notes:           String
 
     init(settings: AppSettings) {
-        self.amount   = settings.fieldAmount
-        self.category = settings.fieldCategory
-        self.merchant = settings.fieldMerchant
-        self.date     = settings.fieldDate
-        self.notes    = settings.fieldNotes
+        self.amount          = settings.fieldAmount
+        self.primaryCategory = settings.fieldPrimaryCategory
+        self.subCategory     = settings.fieldSubCategory
+        self.merchant        = settings.fieldMerchant
+        self.date            = settings.fieldDate
+        self.notes           = settings.fieldNotes
     }
 }

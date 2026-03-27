@@ -23,9 +23,8 @@ struct AnalyzeExpenseIntent: AppIntent {
         let settings = AppSettings()
         guard settings.isGLMConfigured else {
             log.log("GLM API Key 未配置", level: .error)
-            return .result(dialog: "❌ 请先在 ExpenseCapture App 中配置 GLM API Key")
+            return .result(dialog: "❌ 请先在 Plutus App 中配置 GLM API Key")
         }
-        log.log("GLM API Key 已配置 ✓", level: .success)
 
         // 2. 解码图片
         log.log("正在读取截图...", level: .info)
@@ -33,52 +32,47 @@ struct AnalyzeExpenseIntent: AppIntent {
         log.log("截图数据大小: \(imageData.count / 1024) KB", level: .debug)
 
         guard let image = UIImage(data: imageData) else {
-            log.log("UIImage 解码失败，数据可能不是有效图片", level: .error)
+            log.log("UIImage 解码失败", level: .error)
             return .result(dialog: "❌ 截图解码失败，请确保传入的是图片文件")
         }
         log.log("截图尺寸: \(Int(image.size.width))×\(Int(image.size.height)) pt", level: .debug)
 
-        // 3. 调用 GLM Vision
-        log.log("正在调用 GLM Vision API...", level: .info)
+        // 3. Phase 1：识别核心字段（金额、商户、时间）
+        log.log("Phase1：识别核心字段...", level: .info)
         let glmService = GLMVisionService()
-        let extraction: ExpenseExtraction
+        let core: CoreExtraction
         do {
-            extraction = try await glmService.analyze(image: image, apiKey: settings.glmAPIKey)
-            log.log("GLM 返回 amount=\(extraction.amount), merchant=\(extraction.merchant), category=\(extraction.category)", level: .debug)
+            core = try await glmService.analyzeCore(image: image, apiKey: settings.glmAPIKey)
+            log.log("Phase1 完成: amount=\(core.amount), merchant=\(core.merchant)", level: .debug)
         } catch {
-            log.log("GLM 调用失败: \(error.localizedDescription)", level: .error)
+            log.log("Phase1 失败: \(error.localizedDescription)", level: .error)
             return .result(dialog: "❌ 识别失败: \(error.localizedDescription)")
         }
 
-        // 4. 检查核心字段：amount + merchant 两者都有才继续
-        guard extraction.amount != 0 else {
-            log.log("amount=0，模型判断截图中无消费信息（merchant=\(extraction.merchant)）", level: .warning)
+        // 4. 校验核心字段
+        guard core.amount != 0 else {
+            log.log("amount=0，截图中无消费信息", level: .warning)
             return .result(dialog: "ℹ️ 截图中未检测到消费信息")
         }
-        guard !extraction.merchant.isEmpty, extraction.merchant != "未知商户" else {
+        guard !core.merchant.isEmpty, core.merchant != "未知商户" else {
             log.log("merchant 未提取到，跳过写入", level: .warning)
             return .result(dialog: "ℹ️ 无法识别商户名称，请重试")
         }
-
-        // 其他字段缺失时记 warning，不阻断流程
-        if extraction.category.isEmpty || extraction.category == "其他" {
-            log.log("category 未能精确识别，使用默认值「其他」", level: .warning)
-        }
-        if extraction.transactionDate == nil {
+        if core.transactionDate == nil {
             log.log("transactionDate 未提取到，将使用当前时间", level: .warning)
         }
 
-        log.log("核心字段就绪: \(extraction.currency)\(extraction.amount) @ \(extraction.merchant)", level: .success)
+        // 5. 创建本地记录（分类暂为「其他」，Phase2 补全）
+        let record = ExpenseRecord(from: core)
+        log.log("核心字段就绪: \(record.displayAmount) @ \(record.merchant)", level: .success)
 
-        // 5. 创建本地记录
-        let record = ExpenseRecord(from: extraction)
-
-        // 6. 写入飞书
+        // 6. Phase1 写入飞书（只写金额、商户、时间）
+        var feishuRecordID: String? = nil
         if settings.isFeishuConfigured {
-            log.log("正在写入飞书 Bitable...", level: .info)
+            log.log("Phase1 写入飞书...", level: .info)
             let feishuService = FeishuBitableService()
             do {
-                try await feishuService.addRecord(
+                feishuRecordID = try await feishuService.addRecord(
                     expense: record,
                     appID: settings.feishuAppID,
                     appSecret: settings.feishuAppSecret,
@@ -86,21 +80,61 @@ struct AnalyzeExpenseIntent: AppIntent {
                     tableID: settings.tableID,
                     fieldNames: FeishuFieldNames(settings: settings)
                 )
-                log.log("飞书写入成功 ✓", level: .success)
+                log.log("Phase1 飞书写入成功 ✓ recordID=\(feishuRecordID ?? "-")", level: .success)
             } catch {
-                log.log("飞书写入失败: \(error.localizedDescription)", level: .error)
+                log.log("Phase1 飞书写入失败: \(error.localizedDescription)", level: .error)
             }
         } else {
             log.log("飞书未配置，跳过写入", level: .warning)
         }
 
-        // 7. 保存本地
+        // 7. 保存本地（先以「其他」占位）
         await saveLocalRecord(record)
-        log.log("本地记录已保存", level: .success)
+        log.log("本地记录已保存（Phase1）", level: .success)
 
-        // 8. 返回结果给快捷指令
+        // 8. 返回 dialog（Phase1 完成，用户已感知结果）
         let dialogText = "✅已记账 \(record.displayAmount) \(record.merchant)"
-        log.log("▶️ Intent 完成", level: .success)
+        log.log("▶️ Phase1 完成，返回 dialog", level: .success)
+
+        // 9. Phase2：后台静默识别分类和备注
+        let recordID = record.id
+        let feishuID = feishuRecordID
+        let apiKey = settings.glmAPIKey
+        let merchant = record.merchant
+
+        Task {
+            log.log("Phase2：后台识别分类...", level: .info)
+            do {
+                let detail = try await glmService.analyzeDetail(image: image, merchant: merchant, apiKey: apiKey)
+                log.log("Phase2 完成: subCategory=\(detail.subCategory)", level: .debug)
+
+                // 更新本地记录
+                await updateLocalRecord(id: recordID, with: detail)
+                log.log("Phase2 本地记录已更新", level: .success)
+
+                // PATCH 飞书
+                if settings.isFeishuConfigured, let fid = feishuID {
+                    let feishuService = FeishuBitableService()
+                    do {
+                        try await feishuService.updateRecord(
+                            recordID: fid,
+                            detail: detail,
+                            appID: settings.feishuAppID,
+                            appSecret: settings.feishuAppSecret,
+                            appToken: settings.bitableAppToken,
+                            tableID: settings.tableID,
+                            fieldNames: FeishuFieldNames(settings: settings)
+                        )
+                        log.log("Phase2 飞书更新成功 ✓", level: .success)
+                    } catch {
+                        log.log("Phase2 飞书更新失败: \(error.localizedDescription)", level: .error)
+                    }
+                }
+            } catch {
+                log.log("Phase2 识别失败: \(error.localizedDescription)", level: .error)
+            }
+        }
+
         return .result(dialog: IntentDialog(stringLiteral: dialogText))
     }
 
@@ -110,6 +144,12 @@ struct AnalyzeExpenseIntent: AppIntent {
     private func saveLocalRecord(_ record: ExpenseRecord) {
         let store = ExpenseRecordStore()
         store.add(record)
+    }
+
+    @MainActor
+    private func updateLocalRecord(id: UUID, with detail: DetailExtraction) {
+        let store = ExpenseRecordStore()
+        store.update(id: id, with: detail)
     }
 }
 

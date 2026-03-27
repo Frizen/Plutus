@@ -73,7 +73,8 @@ struct SettingsView: View {
                 // MARK: 字段名映射
                 Section {
                     LabeledTextField(label: "金额",     placeholder: "金额",     text: $settings.fieldAmount)
-                    LabeledTextField(label: "消费类型", placeholder: "消费类型", text: $settings.fieldCategory)
+                    LabeledTextField(label: "一级分类", placeholder: "一级分类", text: $settings.fieldPrimaryCategory)
+                    LabeledTextField(label: "二级分类", placeholder: "二级分类", text: $settings.fieldSubCategory)
                     LabeledTextField(label: "商户",     placeholder: "商户",     text: $settings.fieldMerchant)
                     LabeledTextField(label: "日期",     placeholder: "日期",     text: $settings.fieldDate)
                     LabeledTextField(label: "备注",     placeholder: "备注",     text: $settings.fieldNotes)
@@ -251,16 +252,16 @@ struct ExpenseRecordRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: categoryIcon(record.category))
+            Image(systemName: categoryIcon(record))
                 .font(.title3)
                 .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
-                .background(RoundedRectangle(cornerRadius: 8).fill(categoryColor(record.category)))
+                .background(RoundedRectangle(cornerRadius: 8).fill(categoryColor(record)))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.merchant)
                     .font(.subheadline).fontWeight(.medium)
-                Text("\(record.category) · \(record.displayDate)")
+                Text("\(record.primaryCategory) · \(record.subCategory) · \(record.displayDate)")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -272,25 +273,33 @@ struct ExpenseRecordRow: View {
         .padding(.vertical, 2)
     }
 
-    private func categoryIcon(_ category: String) -> String {
-        switch category {
-        case "餐饮": return "fork.knife"
-        case "交通": return "car.fill"
-        case "购物": return "bag.fill"
-        case "娱乐": return "gamecontroller.fill"
-        case "医疗": return "cross.fill"
-        default:     return "creditcard.fill"
+    private func categoryIcon(_ record: ExpenseRecord) -> String {
+        switch record.primaryCategory {
+        case "餐饮":    return "fork.knife"
+        case "行车交通": return "car.fill"
+        case "购物消费": return "bag.fill"
+        case "休闲娱乐": return "gamecontroller.fill"
+        case "医疗":    return "cross.fill"
+        case "居家生活": return "house.fill"
+        case "人情费用": return "gift.fill"
+        case "公益":    return "heart.fill"
+        case "保险":    return "shield.fill"
+        default:       return "creditcard.fill"
         }
     }
 
-    private func categoryColor(_ category: String) -> Color {
-        switch category {
-        case "餐饮": return .orange
-        case "交通": return .blue
-        case "购物": return .purple
-        case "娱乐": return .pink
-        case "医疗": return .red
-        default:     return .gray
+    private func categoryColor(_ record: ExpenseRecord) -> Color {
+        switch record.primaryCategory {
+        case "餐饮":    return .orange
+        case "行车交通": return .blue
+        case "购物消费": return .purple
+        case "休闲娱乐": return .pink
+        case "医疗":    return .red
+        case "居家生活": return .teal
+        case "人情费用": return .yellow
+        case "公益":    return .green
+        case "保险":    return .indigo
+        default:       return .gray
         }
     }
 }

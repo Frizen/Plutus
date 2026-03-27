@@ -1,5 +1,22 @@
 # Plutus 产品迭代详情
 
+## v0.13.0 — 两阶段分类体系 & 商户识别优化
+**日期**：2026-03
+
+### 变更内容
+- **消费分类重构**：将原来 6 个一级分类扩展为两级体系，AI 只识别二级分类（32类），一级分类（9类）由本地规则推导，无需额外 API 调用
+- **两阶段识别架构**：Phase 1 只识别金额/商户/时间（prompt 精简，速度快），识别完即写入飞书并弹出 dialog；Phase 2 后台静默识别分类和备注，完成后 PATCH 更新飞书记录，用户无感知等待
+- **商户识别优化**：新增规则——品牌简称优先于工商注册全称，过滤含「市」「区」「有限公司」等字样的长文本（解决喜茶被识别为「广州市海珠区超鹏饮品店」的问题）
+- **去除支付渠道字段**：从模型、本地存储、飞书写入全面移除，简化数据结构
+- **图片处理性能优化**：压缩操作移入 `Task.detached` 后台线程，不阻塞主协程
+
+### 技术实现
+- `GLMVisionService` 拆分为 `analyzeCore()` 和 `analyzeDetail()` 两个方法，`max_tokens` 降至 256
+- `FeishuBitableService.addRecord()` 改为返回 `record_id`，新增 `updateRecord()` 用 PUT 补全分类字段
+- `ExpenseRecord` 引入 `CoreExtraction` / `DetailExtraction` 两个解码模型，新增 `withDetail()` 和 `ExpenseRecordStore.update(id:with:)`
+
+---
+
 ## v0.1.0 — 初始版本
 **日期**：2026-03
 
