@@ -169,7 +169,7 @@ struct ExpenseCaptureShortcuts: AppShortcutsProvider {
                 "\(.applicationName) 记录一笔消费",
                 "用 \(.applicationName) 分析消费截图"
             ],
-            shortTitle: "记录消费",
+            shortTitle: "立即记账",
             systemImageName: "camera.viewfinder"
         )
     }
