@@ -100,9 +100,12 @@ struct SettingsView: View {
 
                         if let result = feishuTestResult { testResultRow(result) }
                     } label: {
-                        Label("飞书 Bitable（可选，云端同步）", systemImage: "tablecells")
-                            .foregroundStyle(settings.isFeishuConfigured ? .primary : .secondary)
+                        Text("可选，展开配置云端同步")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+                } header: {
+                    Label("飞书 Bitable", systemImage: "tablecells")
                 } footer: {
                     Text("「一键建表」需在飞书开放平台为应用开通 drive:drive 权限。")
                         .font(.caption)
