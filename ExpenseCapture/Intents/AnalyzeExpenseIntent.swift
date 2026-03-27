@@ -11,7 +11,7 @@ struct AnalyzeExpenseIntent: AppIntent {
     )
 
     @Parameter(title: "截图")
-    var screenshot: IntentFile
+    var screenshot: IntentFile?
 
     // MARK: - Perform
 
@@ -27,8 +27,12 @@ struct AnalyzeExpenseIntent: AppIntent {
         }
 
         // 2. 解码图片
+        guard let screenshotFile = screenshot else {
+            log.log("未收到截图，请在快捷指令中连接「截屏」动作", level: .error)
+            return .result(dialog: "❌ 未收到截图，请确保快捷指令中已添加「截屏」动作并连接到本步骤")
+        }
         log.log("正在读取截图...", level: .info)
-        let imageData = screenshot.data
+        let imageData = screenshotFile.data
         log.log("截图数据大小: \(imageData.count / 1024) KB", level: .debug)
 
         guard let image = UIImage(data: imageData) else {
