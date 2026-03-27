@@ -47,7 +47,7 @@ struct SettingsView: View {
                     Label("智谱 GLM API", systemImage: "brain.head.profile")
                 } footer: {
                     HStack(spacing: 4) {
-                        Text("免费注册即送额度，够日常使用。")
+                        Text("注册后即可免费使用。")
                             .font(.caption).foregroundStyle(.secondary)
                         Link("去获取 API Key →",
                              destination: URL(string: "https://open.bigmodel.cn/usercenter/apikeys")!)
@@ -136,6 +136,7 @@ struct SettingsView: View {
             .navigationTitle("配置")
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .top) { Color.clear.frame(height: 8) }
+            .environment(\.defaultMinListHeaderHeight, 32)
             .onAppear { feishuExpanded = settings.isFeishuConfigured }
         }
     }
