@@ -48,11 +48,11 @@ struct SettingsView: View {
                 } footer: {
                     HStack(spacing: 4) {
                         Text("注册后即可免费使用。")
-                            .font(.caption).foregroundStyle(.secondary)
                         Link("去获取 API Key →",
                              destination: URL(string: "https://open.bigmodel.cn/usercenter/apikeys")!)
-                            .font(.caption)
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 // MARK: 飞书
