@@ -81,13 +81,74 @@ class GLMVisionService {
 
     // MARK: - Public API
 
-    func analyze(image: UIImage, apiKey: String) async throws -> ExpenseExtraction {
-        guard !apiKey.trimmingCharacters(in: .whitespaces).isEmpty else {
-            throw GLMVisionError.apiKeyMissing
-        }
+    /// Phase 1：只提取金额、商户、交易时间（prompt 精简，速度最快）
+    func analyzeCore(image: UIImage, apiKey: String) async throws -> CoreExtraction {
+        let base64 = try await encodeImage(image)
+        let prompt = """
+        你是一个消费记录提取助手，从手机截图中提取消费信息。
 
-        // 图片压缩移到后台线程，避免阻塞协程
-        let base64String = try await Task.detached(priority: .userInitiated) {
+        识别规则：
+        1. 找页面中的消费金额（¥ 符号后的数字，或"实付""合计"等字段）
+        2. amount 必须是正数，"-¥6.90"中 "-" 只是支出方向，填 6.9
+        3. 仅当截图明确与支付无关（聊天/朋友圈/设置页）时，amount 才填 0
+        4. 商户识别优先级：
+           【1】圆形 logo 旁紧邻的短文本（最可靠，通常是品牌名）
+           【2】金额正上方或正下方的短文本
+           【3】"商户名称""收款方""店铺名称""商家"字段后的文本
+           【4】订单标题、收款备注
+           以上都没有时填"未知商户"
+        5. 商户名称应该是品牌名或简称（通常 2-8 个字），不要填工商注册的公司全称（如"广州市××区××饮品店""北京××科技有限公司"等含"市""区""有限公司""科技"等字样的长文本）。若页面同时存在品牌简称和公司全称，优先取品牌简称。
+        6. transactionDate 格式为 yyyy-MM-dd HH:mm，精确到分钟，无则为 null
+
+        请严格按照以下 JSON 格式返回，不要有任何其他内容：
+        {
+          "amount": <正数，若无消费则为0>,
+          "merchant": <商户品牌名或简称，不要填公司全称>,
+          "transactionDate": <yyyy-MM-dd HH:mm 或 null>
+        }
+        """
+        let text = try await callGLM(imageBase64: base64, prompt: prompt, apiKey: apiKey)
+        IntentLogger.shared.log("Phase1 原始回包: \(text.prefix(200))", level: .debug)
+        return try parseJSON(from: text, as: CoreExtraction.self)
+    }
+
+    /// Phase 2：在已知商户名的基础上，识别二级分类和备注（后台静默执行）
+    func analyzeDetail(image: UIImage, merchant: String, apiKey: String) async throws -> DetailExtraction {
+        let base64 = try await encodeImage(image)
+        let prompt = """
+        你是一个消费分类助手。商户名称为「\(merchant)」，请结合截图内容识别二级分类和备注。
+
+        二级分类只能从以下选项中选择一个：
+        外出就餐、外卖、水果、零食、买菜、奶茶、饮料酒水、物业费、水电燃气、电器、手机话费、
+        红包、礼物、地铁公交、长途交通、打车、生活用品、电子数码、美妆护肤、衣裤鞋帽、
+        书报杂志、珠宝首饰、宠物、美发、医疗、药物、慈善、娱乐、旅游、按摩、运动、保险
+
+        分类参考：
+        - 外出就餐：麦当劳、肯德基、海底捞、西贝、火锅、烧烤、快餐等线下堂食
+        - 外卖：美团外卖、饿了么
+        - 奶茶：星巴克、瑞幸、喜茶、奈雪、古茗、蜜雪冰城、茶百道
+        - 打车：滴滴、T3出行、曹操出行、嘀嗒、出租车
+        - 长途交通：高铁、火车、飞机、12306、携程、同程
+        - 地铁公交：地铁、公交、城市轨道
+        - 娱乐：电影、KTV、游戏、演唱会、视频/音乐会员、Steam
+        - 旅游：酒店、民宿、景区
+        无法判断时填「其他」
+
+        请严格按照以下 JSON 格式返回，不要有任何其他内容：
+        {
+          "subCategory": <二级分类>,
+          "notes": <备注，无则为 null>
+        }
+        """
+        let text = try await callGLM(imageBase64: base64, prompt: prompt, apiKey: apiKey)
+        IntentLogger.shared.log("Phase2 原始回包: \(text.prefix(200))", level: .debug)
+        return try parseJSON(from: text, as: DetailExtraction.self)
+    }
+
+    // MARK: - Shared Helpers
+
+    private func encodeImage(_ image: UIImage) async throws -> String {
+        return try await Task.detached(priority: .userInitiated) {
             let resized = self.resizeImage(image, maxDimension: self.maxImageDimension)
             guard let data = resized.jpegData(compressionQuality: 0.85) else {
                 throw GLMVisionError.imageEncodingFailed
@@ -103,51 +164,12 @@ class GLMVisionService {
             }
             return finalData.base64EncodedString()
         }.value
-
-        return try await callGLMAPI(imageBase64: base64String, apiKey: apiKey)
     }
 
-    // MARK: - Private
-
-    private func callGLMAPI(imageBase64: String, apiKey: String) async throws -> ExpenseExtraction {
-        let prompt = """
-        你是一个消费记录提取助手，从手机截图中提取消费信息。
-        截图来源包括但不限于：微信支付详情、支付宝账单、美团订单、滴滴行程、京东/淘宝订单、银行转账记录、各类收银小票等。
-
-        识别规则：
-        1. 微信支付：找"¥"金额、收款方/商户名称、交易时间（页面上方或底部）
-        2. 支付宝：找"实付款"或"¥"金额、商家名称、交易时间
-        3. 外卖/电商：找"实付"或"合计"金额、店铺名称、下单时间
-        4. 只要页面中出现了金额数字和收款对象，就判定为消费信息，amount 填入金额数字
-        5. 仅当截图明确是聊天、朋友圈、设置页等与支付完全无关的页面时，才将 amount 设为 0
-        6. amount 必须是正数。微信/支付宝等 App 用"-¥6.90"表示支出，"-"只是方向标记，amount 应填 6.9，不要填负数
-
-        商户名称识别规则（按优先级从高到低）：
-        【优先级1】页面中存在圆形 logo 图标，且紧邻该图标正下方或右方有一行短文本（通常是商户品牌名、店名或收款方姓名），优先将该文本识别为商户名称，这是最可靠的信号
-        【优先级2】位于金额正上方或正下方的短文本（通常是商户名或收款方名称）
-        【优先级3】页面中明确标注"商户名称""收款方""店铺名称""商家"等字段后面跟随的文本
-        【优先级4】订单标题、收款备注中出现的商户名
-        以上都没有时才填"未知商户"
-
-        消费类型判断规则（优先根据商户名推断，再结合页面内容）：
-        - 餐饮：餐厅、饭店、咖啡、奶茶、外卖、烧烤、火锅、快餐、食堂、面包、蛋糕、甜品、便利店、超市食品区，以及品牌如：麦当劳、肯德基、星巴克、瑞幸、喜茶、奈雪、蜜雪冰城、古茗、茶百道、沪上阿姨、一点点、海底捞、西贝、太二、美团外卖、饿了么
-        - 交通：滴滴、出租车、高铁、火车、飞机、机票、地铁、公交、加油站、ETC、停车、顺风车、曹操出行、嘀嗒、T3出行、12306
-        - 购物：淘宝、天猫、京东、拼多多、抖音商城、唯品会、得物、SHEIN、超市、商场、便利店（非食品）、服装、电器
-        - 娱乐：电影、KTV、游戏、演唱会、景区、剧本杀、密室、视频会员、音乐会员、Steam、体育、运动
-        - 医疗：医院、药店、诊所、体检、药品、医保
-        - 其他：无法归入以上类别时才选「其他」
-
-        请严格按照以下 JSON 格式返回，不要包含任何其他文字或 markdown 标记：
-        {
-          "amount": <正数，消费金额，若无则为0>,
-          "currency": <货币代码，如 CNY/USD/EUR，默认 CNY>,
-          "category": <消费类型，只能是：餐饮/交通/购物/娱乐/医疗/其他 之一>,
-          "merchant": <商户名称，如无则为"未知商户">,
-          "transactionDate": <消费时间字符串，格式为 yyyy-MM-dd HH:mm，必须精确到时和分，如无则为null>,
-          "notes": <备注信息，如无则为null>
+    private func callGLM(imageBase64: String, prompt: String, apiKey: String) async throws -> String {
+        guard !apiKey.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw GLMVisionError.apiKeyMissing
         }
-        只返回 JSON，不要有任何其他内容。
-        """
 
         let requestBody = GLMRequest(
             model: model,
@@ -157,7 +179,7 @@ class GLMVisionService {
                     GLMContent(text: prompt)
                 ])
             ],
-            max_tokens: 1024,
+            max_tokens: 256,
             temperature: 0.1
         )
 
@@ -185,20 +207,15 @@ class GLMVisionService {
         }
 
         let glmResponse = try JSONDecoder().decode(GLMResponse.self, from: data)
-
         guard let text = glmResponse.choices.first?.message.content else {
-            IntentLogger.shared.log("GLM 响应中 choices 为空", level: .error)
             throw GLMVisionError.decodingFailed("响应中无文本内容")
         }
-
-        IntentLogger.shared.log("GLM 原始回包: \(text.prefix(300))", level: .debug)
-        return try parseExpenseJSON(from: text)
+        return text
     }
 
-    private func parseExpenseJSON(from text: String) throws -> ExpenseExtraction {
+    private func parseJSON<T: Decodable>(from text: String, as type: T.Type) throws -> T {
         var jsonString = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // 去掉可能存在的 ```json ... ``` 包裹
         if let range = jsonString.range(of: "```json") {
             jsonString = String(jsonString[range.upperBound...])
             if let end = jsonString.range(of: "```") {
@@ -211,7 +228,6 @@ class GLMVisionService {
             }
         }
 
-        // 提取第一个完整的 JSON 对象
         if let start = jsonString.firstIndex(of: "{"),
            let end = jsonString.lastIndex(of: "}") {
             jsonString = String(jsonString[start...end])
@@ -224,7 +240,7 @@ class GLMVisionService {
         }
 
         do {
-            return try JSONDecoder().decode(ExpenseExtraction.self, from: jsonData)
+            return try JSONDecoder().decode(type, from: jsonData)
         } catch {
             throw GLMVisionError.decodingFailed("JSON 解析失败: \(error.localizedDescription)\n原始: \(text.prefix(300))")
         }
