@@ -93,7 +93,8 @@ struct AnalyzeExpenseIntent: AppIntent {
         log.log("本地记录已保存（Phase1）", level: .success)
 
         // 8. 返回 dialog（Phase1 完成，用户已感知结果）
-        let dialogText = "✅已记账 \(record.displayAmount) \(record.merchant)"
+        let modeTag = settings.isFeishuConfigured ? "" : "（仅本地）"
+        let dialogText = "✅已记账\(modeTag) \(record.displayAmount) \(record.merchant)"
         log.log("▶️ Phase1 完成，返回 dialog", level: .success)
 
         // 9. Phase2：后台静默识别分类和备注

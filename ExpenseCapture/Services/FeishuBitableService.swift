@@ -279,6 +279,106 @@ class FeishuBitableService {
         _ = try await fetchFreshToken(appID: appID, appSecret: appSecret)
         return "连接成功，Token 获取正常 ✓"
     }
+
+    // MARK: - Create Expense Table
+
+    /// 一键创建「Plutus 记账」多维表格，自动建字段，返回 (appToken, tableID)
+    func createExpenseTable(appID: String, appSecret: String) async throws -> (appToken: String, tableID: String) {
+        guard !appID.isEmpty, !appSecret.isEmpty else {
+            throw FeishuError.configMissing
+        }
+
+        let token = try await getValidToken(appID: appID, appSecret: appSecret)
+
+        // 1. 创建 Bitable 文档
+        let appToken = try await createBitable(token: token)
+
+        // 2. 获取默认 table 的 tableID
+        let tableID = try await getDefaultTableID(appToken: appToken, token: token)
+
+        // 3. 创建所有字段
+        try await createExpenseFields(appToken: appToken, tableID: tableID, token: token)
+
+        return (appToken, tableID)
+    }
+
+    private func createBitable(token: String) async throws -> String {
+        // 在根目录创建 Bitable 文档
+        let urlString = "https://open.feishu.cn/open-apis/drive/explorer/v2/file/bitable"
+        guard let url = URL(string: urlString) else { throw FeishuError.encodingFailed }
+
+        let body: [String: Any] = ["title": "Plutus 记账"]
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let bodyStr = String(data: data, encoding: .utf8) ?? ""
+            throw FeishuError.invalidResponse((response as? HTTPURLResponse)?.statusCode ?? -1, bodyStr)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataDict = json["data"] as? [String: Any],
+              let appToken = dataDict["token"] as? String else {
+            throw FeishuError.decodingFailed("建表后未返回 appToken")
+        }
+        return appToken
+    }
+
+    private func getDefaultTableID(appToken: String, token: String) async throws -> String {
+        let urlString = "\(bitableEndpoint)/\(appToken)/tables"
+        guard let url = URL(string: urlString) else { throw FeishuError.encodingFailed }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            let bodyStr = String(data: data, encoding: .utf8) ?? ""
+            throw FeishuError.invalidResponse((response as? HTTPURLResponse)?.statusCode ?? -1, bodyStr)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataDict = json["data"] as? [String: Any],
+              let items = dataDict["items"] as? [[String: Any]],
+              let tableID = items.first?["table_id"] as? String else {
+            throw FeishuError.decodingFailed("未能获取默认 table_id")
+        }
+        return tableID
+    }
+
+    private func createExpenseFields(appToken: String, tableID: String, token: String) async throws {
+        // type: 1=文本, 2=数字, 5=日期
+        let fields: [(name: String, type: Int)] = [
+            ("金额",    2),
+            ("商户",    1),
+            ("消费时间", 5),
+            ("一级分类", 1),
+            ("二级分类", 1),
+            ("备注",    1),
+        ]
+
+        let urlString = "\(bitableEndpoint)/\(appToken)/tables/\(tableID)/fields"
+        guard let url = URL(string: urlString) else { throw FeishuError.encodingFailed }
+
+        for field in fields {
+            let body: [String: Any] = ["field_name": field.name, "type": field.type]
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                let bodyStr = String(data: data, encoding: .utf8) ?? ""
+                throw FeishuError.invalidResponse((response as? HTTPURLResponse)?.statusCode ?? -1, bodyStr)
+            }
+        }
+    }
 }
 
 // MARK: - Field Names

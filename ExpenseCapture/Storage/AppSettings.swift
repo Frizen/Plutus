@@ -33,6 +33,11 @@ class AppSettings: ObservableObject {
         !tableID.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// GLM 已配置即可使用（飞书为可选云同步）
+    var isReadyToUse: Bool {
+        isGLMConfigured
+    }
+
     var isFullyConfigured: Bool {
         isGLMConfigured && isFeishuConfigured
     }

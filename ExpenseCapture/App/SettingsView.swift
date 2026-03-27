@@ -9,6 +9,9 @@ struct SettingsView: View {
     @State private var isTestingFeishu = false
     @State private var glmTestResult: TestResult?
     @State private var feishuTestResult: TestResult?
+    @State private var feishuExpanded = false
+    @State private var isCreatingTable = false
+    @State private var createTableResult: TestResult?
 
     var body: some View {
         NavigationStack {
@@ -42,32 +45,67 @@ struct SettingsView: View {
                     if let result = glmTestResult { testResultRow(result) }
                 } header: {
                     Label("智谱 GLM API", systemImage: "brain.head.profile")
+                } footer: {
+                    HStack(spacing: 4) {
+                        Text("免费注册即送额度，够日常使用。")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Link("去获取 API Key →",
+                             destination: URL(string: "https://open.bigmodel.cn/usercenter/apikeys")!)
+                            .font(.caption)
+                    }
                 }
 
                 // MARK: 飞书
                 Section {
-                    LabeledTextField(label: "App ID",           placeholder: "cli_...", text: $settings.feishuAppID)
-                    LabeledTextField(label: "App Secret",       placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
-                    LabeledTextField(label: "App Token",        placeholder: "...",    text: $settings.bitableAppToken)
-                    LabeledTextField(label: "Table ID",         placeholder: "tbl...", text: $settings.tableID)
+                    DisclosureGroup(isExpanded: $feishuExpanded) {
+                        LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
+                        LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
 
-                    Button {
-                        Task { await testFeishuConnection() }
-                    } label: {
-                        HStack {
-                            if isTestingFeishu {
-                                ProgressView().scaleEffect(0.8)
-                            } else {
-                                Image(systemName: "bolt.fill").foregroundStyle(.blue)
+                        // 一键建表：填了 ID+Secret 但还没有 App Token 时显示
+                        if !settings.feishuAppID.isEmpty && !settings.feishuAppSecret.isEmpty
+                            && settings.bitableAppToken.isEmpty {
+                            Button {
+                                Task { await createExpenseTable() }
+                            } label: {
+                                HStack {
+                                    if isCreatingTable {
+                                        ProgressView().scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "wand.and.stars").foregroundStyle(.blue)
+                                    }
+                                    Text("一键创建记账表格")
+                                }
                             }
-                            Text("测试飞书连接")
-                        }
-                    }
-                    .disabled(!settings.isFeishuConfigured || isTestingFeishu)
+                            .disabled(isCreatingTable)
 
-                    if let result = feishuTestResult { testResultRow(result) }
-                } header: {
-                    Label("飞书 Bitable", systemImage: "tablecells")
+                            if let result = createTableResult { testResultRow(result) }
+                        }
+
+                        LabeledTextField(label: "App Token",  placeholder: "...",    text: $settings.bitableAppToken)
+                        LabeledTextField(label: "Table ID",   placeholder: "tbl...", text: $settings.tableID)
+
+                        Button {
+                            Task { await testFeishuConnection() }
+                        } label: {
+                            HStack {
+                                if isTestingFeishu {
+                                    ProgressView().scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "bolt.fill").foregroundStyle(.blue)
+                                }
+                                Text("测试飞书连接")
+                            }
+                        }
+                        .disabled(!settings.isFeishuConfigured || isTestingFeishu)
+
+                        if let result = feishuTestResult { testResultRow(result) }
+                    } label: {
+                        Label("飞书 Bitable（可选，云端同步）", systemImage: "tablecells")
+                            .foregroundStyle(settings.isFeishuConfigured ? .primary : .secondary)
+                    }
+                } footer: {
+                    Text("「一键建表」需在飞书开放平台为应用开通 drive:drive 权限。")
+                        .font(.caption)
                 }
 
                 // MARK: 字段名映射
@@ -95,6 +133,7 @@ struct SettingsView: View {
             .navigationTitle("配置")
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .top) { Color.clear.frame(height: 8) }
+            .onAppear { feishuExpanded = settings.isFeishuConfigured }
         }
     }
 
@@ -102,14 +141,25 @@ struct SettingsView: View {
 
     private var statusCard: some View {
         HStack(spacing: 16) {
-            statusBadge(icon: "brain.head.profile", label: "GLM",  isOK: settings.isGLMConfigured,    color: .orange)
+            statusBadge(icon: "brain.head.profile", label: "GLM",  isOK: settings.isGLMConfigured,   color: .orange)
             Divider().frame(height: 40)
-            statusBadge(icon: "tablecells",         label: "飞书", isOK: settings.isFeishuConfigured,  color: .blue)
+            statusBadge(icon: "tablecells",         label: "飞书", isOK: settings.isFeishuConfigured, color: .blue)
             Divider().frame(height: 40)
-            statusBadge(icon: "checkmark.seal.fill", label: "就绪", isOK: settings.isFullyConfigured,  color: .green)
+            modeStatusBadge
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var modeStatusBadge: some View {
+        if settings.isFullyConfigured {
+            statusBadge(icon: "icloud.fill",      label: "云同步", isOK: true, color: .green)
+        } else if settings.isGLMConfigured {
+            statusBadge(icon: "internaldrive",    label: "本地",   isOK: true, color: .green)
+        } else {
+            statusBadge(icon: "xmark.circle",     label: "未就绪", isOK: false, color: .red)
+        }
     }
 
     private func statusBadge(icon: String, label: String, isOK: Bool, color: Color) -> some View {
@@ -205,6 +255,26 @@ struct SettingsView: View {
             feishuTestResult = TestResult(success: true, message: message)
         } catch {
             feishuTestResult = TestResult(success: false, message: error.localizedDescription)
+        }
+    }
+
+    private func createExpenseTable() async {
+        isCreatingTable = true
+        createTableResult = nil
+        defer { isCreatingTable = false }
+
+        let service = FeishuBitableService()
+        do {
+            let result = try await service.createExpenseTable(
+                appID: settings.feishuAppID,
+                appSecret: settings.feishuAppSecret
+            )
+            settings.bitableAppToken = result.appToken
+            settings.tableID = result.tableID
+            createTableResult = TestResult(success: true, message: "表格创建成功 ✓ 已自动填入 Token 和 Table ID")
+            feishuExpanded = true
+        } catch {
+            createTableResult = TestResult(success: false, message: "创建失败: \(error.localizedDescription)")
         }
     }
 
