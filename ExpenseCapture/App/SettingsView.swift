@@ -48,7 +48,6 @@ struct SettingsView: View {
                 } footer: {
                     HStack(spacing: 4) {
                         Text("注册后即可免费使用。")
-                            .foregroundStyle(.secondary)
                         Link("去获取 API Key →",
                              destination: URL(string: "https://open.bigmodel.cn/usercenter/apikeys")!)
                             .foregroundStyle(Color.accentColor)
