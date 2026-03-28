@@ -57,7 +57,7 @@ struct SettingsView: View {
 
                 // MARK: 飞书
                 Section {
-                    DisclosureGroup(isExpanded: $feishuExpanded) {
+                    if feishuExpanded {
                         LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
                         LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
 
@@ -99,13 +99,20 @@ struct SettingsView: View {
                         .disabled(!settings.isFeishuConfigured || isTestingFeishu)
 
                         if let result = feishuTestResult { testResultRow(result) }
-                    } label: {
-                        Text("可选，展开配置云端同步")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Label("飞书 Bitable", systemImage: "tablecells")
+                    Button {
+                        withAnimation { feishuExpanded.toggle() }
+                    } label: {
+                        HStack {
+                            Label("飞书 Bitable", systemImage: "tablecells")
+                            Spacer()
+                            Image(systemName: feishuExpanded ? "chevron.up" : "chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 } footer: {
                     Text("「一键建表」需在飞书开放平台为应用开通 drive:drive 权限。")
                         .font(.caption)
