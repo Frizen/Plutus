@@ -81,9 +81,13 @@ class GLMVisionService {
 
     // MARK: - Public API
 
+    /// 将图片压缩并编码为 Base64，供 Phase 1 / Phase 2 共用，避免重复编码
+    func encodeImage(_ image: UIImage) async throws -> String {
+        return try await _encodeImage(image)
+    }
+
     /// Phase 1：只提取金额、商户、交易时间（prompt 精简，速度最快）
-    func analyzeCore(image: UIImage, apiKey: String) async throws -> CoreExtraction {
-        let base64 = try await encodeImage(image)
+    func analyzeCore(imageBase64: String, apiKey: String) async throws -> CoreExtraction {
         let prompt = """
         你是一个消费记录提取助手，从手机截图中提取消费信息。
 
@@ -107,14 +111,13 @@ class GLMVisionService {
           "transactionDate": <yyyy-MM-dd HH:mm 或 null>
         }
         """
-        let text = try await callGLM(imageBase64: base64, prompt: prompt, apiKey: apiKey)
+        let text = try await callGLM(imageBase64: imageBase64, prompt: prompt, apiKey: apiKey)
         IntentLogger.shared.log("Phase1 原始回包: \(text.prefix(200))", level: .debug)
         return try parseJSON(from: text, as: CoreExtraction.self)
     }
 
     /// Phase 2：在已知商户名的基础上，识别二级分类和备注（后台静默执行）
-    func analyzeDetail(image: UIImage, merchant: String, apiKey: String) async throws -> DetailExtraction {
-        let base64 = try await encodeImage(image)
+    func analyzeDetail(imageBase64: String, merchant: String, apiKey: String) async throws -> DetailExtraction {
         let prompt = """
         你是一个消费分类助手。商户名称为「\(merchant)」，请结合截图内容识别二级分类和备注。
 
@@ -140,14 +143,14 @@ class GLMVisionService {
           "notes": <备注，无则为 null>
         }
         """
-        let text = try await callGLM(imageBase64: base64, prompt: prompt, apiKey: apiKey)
+        let text = try await callGLM(imageBase64: imageBase64, prompt: prompt, apiKey: apiKey)
         IntentLogger.shared.log("Phase2 原始回包: \(text.prefix(200))", level: .debug)
         return try parseJSON(from: text, as: DetailExtraction.self)
     }
 
     // MARK: - Shared Helpers
 
-    private func encodeImage(_ image: UIImage) async throws -> String {
+    private func _encodeImage(_ image: UIImage) async throws -> String {
         return try await Task.detached(priority: .userInitiated) {
             let resized = self.resizeImage(image, maxDimension: self.maxImageDimension)
             guard let data = resized.jpegData(compressionQuality: 0.85) else {

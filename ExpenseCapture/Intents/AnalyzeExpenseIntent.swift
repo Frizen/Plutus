@@ -41,19 +41,29 @@ struct AnalyzeExpenseIntent: AppIntent {
         }
         log.log("截图尺寸: \(Int(image.size.width))×\(Int(image.size.height)) pt", level: .debug)
 
-        // 3. Phase 1：识别核心字段（金额、商户、时间）
-        log.log("Phase1：识别核心字段...", level: .info)
+        // 3. 编码图片（Phase 1 / Phase 2 共用，只编码一次）
         let glmService = GLMVisionService()
+        let imageBase64: String
+        do {
+            imageBase64 = try await glmService.encodeImage(image)
+            log.log("图片编码完成", level: .debug)
+        } catch {
+            log.log("图片编码失败: \(error.localizedDescription)", level: .error)
+            return .result(dialog: "❌ 图片编码失败")
+        }
+
+        // 4. Phase 1：识别核心字段（金额、商户、时间）
+        log.log("Phase1：识别核心字段...", level: .info)
         let core: CoreExtraction
         do {
-            core = try await glmService.analyzeCore(image: image, apiKey: settings.glmAPIKey)
+            core = try await glmService.analyzeCore(imageBase64: imageBase64, apiKey: settings.glmAPIKey)
             log.log("Phase1 完成: amount=\(core.amount), merchant=\(core.merchant)", level: .debug)
         } catch {
             log.log("Phase1 失败: \(error.localizedDescription)", level: .error)
             return .result(dialog: "❌ 识别失败: \(error.localizedDescription)")
         }
 
-        // 4. 校验核心字段
+        // 5. 校验核心字段
         guard core.amount != 0 else {
             log.log("amount=0，截图中无消费信息", level: .warning)
             return .result(dialog: "ℹ️ 截图中未检测到消费信息")
@@ -106,11 +116,12 @@ struct AnalyzeExpenseIntent: AppIntent {
         let feishuID = feishuRecordID
         let apiKey = settings.glmAPIKey
         let merchant = record.merchant
+        let base64ForPhase2 = imageBase64  // 复用已编码的图片，避免重复编码
 
         Task {
             log.log("Phase2：后台识别分类...", level: .info)
             do {
-                let detail = try await glmService.analyzeDetail(image: image, merchant: merchant, apiKey: apiKey)
+                let detail = try await glmService.analyzeDetail(imageBase64: base64ForPhase2, merchant: merchant, apiKey: apiKey)
                 log.log("Phase2 完成: subCategory=\(detail.subCategory)", level: .debug)
 
                 // 更新本地记录
