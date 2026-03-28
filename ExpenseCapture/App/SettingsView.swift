@@ -51,7 +51,7 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                         Link("去获取 API Key →",
                              destination: URL(string: "https://open.bigmodel.cn/usercenter/apikeys")!)
-                            .foregroundStyle(.accent)
+                            .foregroundStyle(Color.accentColor)
                     }
                     .font(.caption)
                 }
