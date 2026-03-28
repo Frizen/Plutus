@@ -8,38 +8,11 @@ struct CoreExtraction: Codable {
     let transactionDate: String?
 }
 
-// MARK: - Phase 2: 详情字段（二级分类、备注）
+// MARK: - Phase 2: 详情字段（分类、备注）
 
 struct DetailExtraction: Codable {
     let subCategory: String
     let notes: String?
-}
-
-// MARK: - 一级分类推导
-
-func primaryCategory(from subCategory: String) -> String {
-    switch subCategory {
-    case "外出就餐", "外卖", "水果", "零食", "买菜", "奶茶", "饮料酒水":
-        return "餐饮"
-    case "物业费", "水电燃气", "电器", "手机话费":
-        return "居家生活"
-    case "红包", "礼物":
-        return "人情费用"
-    case "地铁公交", "长途交通", "打车":
-        return "行车交通"
-    case "生活用品", "电子数码", "美妆护肤", "衣裤鞋帽", "书报杂志", "珠宝首饰", "宠物", "美发":
-        return "购物消费"
-    case "医疗", "药物":
-        return "医疗"
-    case "慈善":
-        return "公益"
-    case "娱乐", "旅游", "按摩", "运动":
-        return "休闲娱乐"
-    case "保险":
-        return "保险"
-    default:
-        return "其他"
-    }
 }
 
 // MARK: - Expense Record (local storage)
@@ -48,32 +21,50 @@ struct ExpenseRecord: Codable, Identifiable {
     let id: UUID
     let amount: Double
     let currency: String
-    var subCategory: String
-    var primaryCategory: String
+    var category: String
     let merchant: String
     let transactionDate: String?
     var notes: String?
     let recordedAt: Date
+    var userName: String       // 记账成员，旧记录解码时为空字符串
+
+    // CodingKeys：保持 JSON key 为 "subCategory"，兼容旧版本本地存储
+    enum CodingKeys: String, CodingKey {
+        case id, amount, currency, merchant, transactionDate, notes, recordedAt, userName
+        case category = "subCategory"
+    }
+
+    // 自定义解码：userName 为新字段，旧数据中不存在时默认空字符串
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id              = try c.decode(UUID.self,   forKey: .id)
+        amount          = try c.decode(Double.self, forKey: .amount)
+        currency        = try c.decode(String.self, forKey: .currency)
+        category        = try c.decode(String.self, forKey: .category)
+        merchant        = try c.decode(String.self, forKey: .merchant)
+        transactionDate = try c.decodeIfPresent(String.self, forKey: .transactionDate)
+        notes           = try c.decodeIfPresent(String.self, forKey: .notes)
+        recordedAt      = try c.decode(Date.self,   forKey: .recordedAt)
+        userName        = (try? c.decodeIfPresent(String.self, forKey: .userName)) ?? ""
+    }
 
     // Phase 1：仅核心字段，分类待补全
-    init(from core: CoreExtraction) {
+    init(from core: CoreExtraction, userName: String = "") {
         self.id = UUID()
         self.amount = abs(core.amount)
         self.currency = "CNY"
-        self.subCategory = "其他"
-        self.primaryCategory = "其他"
+        self.category = "其他"
         self.merchant = core.merchant.isEmpty ? "未知商户" : core.merchant
         self.transactionDate = core.transactionDate
         self.notes = nil
         self.recordedAt = Date()
+        self.userName = userName
     }
 
     // Phase 2：用详情字段生成更新后的副本
     func withDetail(_ detail: DetailExtraction) -> ExpenseRecord {
         var updated = self
-        let sub = detail.subCategory.isEmpty ? "其他" : detail.subCategory
-        updated.subCategory = sub
-        updated.primaryCategory = ExpenseCapture.primaryCategory(from: sub)
+        updated.category = detail.subCategory.isEmpty ? "其他" : detail.subCategory
         updated.notes = detail.notes
         return updated
     }
@@ -103,15 +94,17 @@ struct ExpenseRecord: Codable, Identifiable {
     }
 }
 
-// MARK: - Local Record Store
+// MARK: - Local Record Store（单例，避免多实例数据不同步）
 
 class ExpenseRecordStore: ObservableObject {
+    static let shared = ExpenseRecordStore()
+
     @Published var records: [ExpenseRecord] = []
 
     private let storageKey = "expense_records"
-    private let maxRecords = 100
+    private let maxRecords = 1000
 
-    init() {
+    private init() {
         load()
     }
 
@@ -147,5 +140,9 @@ class ExpenseRecordStore: ObservableObject {
     func clear() {
         records = []
         UserDefaults.standard.removeObject(forKey: storageKey)
+    }
+
+    func reload() {
+        load()
     }
 }

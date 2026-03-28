@@ -9,9 +9,9 @@ struct SettingsView: View {
     @State private var isTestingFeishu = false
     @State private var glmTestResult: TestResult?
     @State private var feishuTestResult: TestResult?
-    @State private var feishuExpanded = false
-    @State private var isCreatingTable = false
-    @State private var createTableResult: TestResult?
+    @State private var bitableURLInput: String = ""
+    @State private var urlParseResult: TestResult?
+    @State private var showResetConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -55,34 +55,41 @@ struct SettingsView: View {
                     .font(.caption)
                 }
 
-                // MARK: 飞书
+                // MARK: 飞书同步开关
                 Section {
-                    if feishuExpanded {
+                    Toggle(isOn: $settings.feishuSyncEnabled) {
+                        Text("同步到飞书多维表格")
+                    }
+                } header: {
+                    Label("数据同步", systemImage: "arrow.triangle.2.circlepath")
+                } footer: {
+                    Text(settings.feishuSyncEnabled
+                         ? "记账数据将保存到本地，同时写入到飞书多维表格。"
+                         : "记账数据仅保存到本地。")
+                        .font(.caption)
+                }
+
+                // MARK: 飞书连接配置（仅开关开启时显示）
+                if settings.feishuSyncEnabled {
+                    Section {
                         LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
                         LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
 
-                        // 一键建表：填了 ID+Secret 但还没有 App Token 时显示
-                        if !settings.feishuAppID.isEmpty && !settings.feishuAppSecret.isEmpty
-                            && settings.bitableAppToken.isEmpty {
-                            Button {
-                                Task { await createExpenseTable() }
-                            } label: {
-                                HStack {
-                                    if isCreatingTable {
-                                        ProgressView().scaleEffect(0.8)
-                                    } else {
-                                        Image(systemName: "wand.and.stars").foregroundStyle(.blue)
-                                    }
-                                    Text("一键创建记账表格")
-                                }
+                        LabeledTextField(label: "表格链接", placeholder: "https://xxx.feishu.cn/base/...", text: $bitableURLInput)
+                            .onChange(of: bitableURLInput) { _, newValue in
+                                parseBitableURL(newValue)
                             }
-                            .disabled(isCreatingTable)
 
-                            if let result = createTableResult { testResultRow(result) }
+                        if let result = urlParseResult { testResultRow(result) }
+
+                        if !settings.bitableAppToken.isEmpty {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                Text("App Token: \(settings.bitableAppToken.prefix(12))…  Table ID: \(settings.tableID.prefix(12))…")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-
-                        LabeledTextField(label: "App Token",  placeholder: "...",    text: $settings.bitableAppToken)
-                        LabeledTextField(label: "Table ID",   placeholder: "tbl...", text: $settings.tableID)
 
                         Button {
                             Task { await testFeishuConnection() }
@@ -99,40 +106,35 @@ struct SettingsView: View {
                         .disabled(!settings.isFeishuConfigured || isTestingFeishu)
 
                         if let result = feishuTestResult { testResultRow(result) }
-                    }
-                } header: {
-                    Button {
-                        withAnimation { feishuExpanded.toggle() }
-                    } label: {
-                        HStack {
-                            Label("飞书 Bitable", systemImage: "tablecells")
-                            Spacer()
-                            Image(systemName: feishuExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                } footer: {
-                    if feishuExpanded {
-                        Text("「一键建表」需在飞书开放平台为应用开通 drive:drive 权限。")
+                    } header: {
+                        Text("飞书连接配置")
                             .font(.caption)
+                            .fontWeight(.regular)
                     }
-                }
 
-                // MARK: 字段名映射
-                Section {
-                    LabeledTextField(label: "金额",     placeholder: "金额",     text: $settings.fieldAmount)
-                    LabeledTextField(label: "一级分类", placeholder: "一级分类", text: $settings.fieldPrimaryCategory)
-                    LabeledTextField(label: "二级分类", placeholder: "二级分类", text: $settings.fieldSubCategory)
-                    LabeledTextField(label: "商户",     placeholder: "商户",     text: $settings.fieldMerchant)
-                    LabeledTextField(label: "日期",     placeholder: "日期",     text: $settings.fieldDate)
-                    LabeledTextField(label: "备注",     placeholder: "备注",     text: $settings.fieldNotes)
-                } header: {
-                    Label("字段名映射（需与表格完全一致）", systemImage: "list.bullet.rectangle")
-                } footer: {
-                    Text("若飞书写入报错 FieldNameNotFound，请检查字段名是否与多维表格列名完全匹配。")
-                        .font(.caption)
+                    // MARK: 记账成员
+                    Section {
+                        TextField("填入名字用于多人协同记账。个人记账可不填。", text: $settings.userName)
+                    } header: {
+                        Text("配置记账成员名")
+                            .font(.caption)
+                            .fontWeight(.regular)
+                    }
+
+                    // MARK: 字段名映射
+                    Section {
+                        LabeledTextField(label: "金额", placeholder: "金额", text: $settings.fieldAmount)
+                        LabeledTextField(label: "商户", placeholder: "商户", text: $settings.fieldMerchant)
+                        LabeledTextField(label: "日期", placeholder: "日期", text: $settings.fieldDate)
+                        LabeledTextField(label: "备注", placeholder: "备注", text: $settings.fieldNotes)
+                        if !settings.userName.isEmpty {
+                            LabeledTextField(label: "记账成员", placeholder: "记账成员", text: $settings.fieldUserName)
+                        }
+                    } header: {
+                        Text("字段名映射（建议保持默认值，如需修改请注意字段名和多维表格的列名一致）")
+                            .font(.caption)
+                            .fontWeight(.regular)
+                    }
                 }
 
                 // MARK: Action Button 引导
@@ -141,12 +143,35 @@ struct SettingsView: View {
                 } header: {
                     Label("Action Button 配置", systemImage: "record.circle")
                 }
+
+                // MARK: 重置
+                Section {
+                    Button(role: .destructive) {
+                        showResetConfirm = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "trash")
+                            Text("清除所有配置与记录")
+                        }
+                    }
+                }
             }
             .navigationTitle("配置")
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .top) { Color.clear.frame(height: 8) }
             .environment(\.defaultMinListHeaderHeight, 32)
-            .onAppear { feishuExpanded = settings.isFeishuConfigured }
+            .onAppear {
+                // 若已有 token+tableID，回填链接输入框供用户查看
+                if !settings.bitableAppToken.isEmpty && !settings.tableID.isEmpty {
+                    bitableURLInput = "https://feishu.cn/base/\(settings.bitableAppToken)?table=\(settings.tableID)"
+                }
+            }
+            .confirmationDialog("确认清除所有配置和本地记录？", isPresented: $showResetConfirm, titleVisibility: .visible) {
+                Button("清除", role: .destructive) { resetAll() }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("此操作不可撤销，飞书中的数据不受影响。")
+            }
         }
     }
 
@@ -154,9 +179,7 @@ struct SettingsView: View {
 
     private var statusCard: some View {
         HStack(spacing: 16) {
-            statusBadge(icon: "brain.head.profile", label: "GLM",  isOK: settings.isGLMConfigured,   color: .orange)
-            Divider().frame(height: 40)
-            statusBadge(icon: "tablecells",         label: "飞书", isOK: settings.isFeishuConfigured, color: .blue)
+            statusBadge(icon: "brain.head.profile", label: "GLM", isOK: settings.isGLMConfigured, color: .orange)
             Divider().frame(height: 40)
             modeStatusBadge
         }
@@ -167,11 +190,11 @@ struct SettingsView: View {
     @ViewBuilder
     private var modeStatusBadge: some View {
         if settings.isFullyConfigured {
-            statusBadge(icon: "icloud.fill",      label: "云同步", isOK: true, color: .green)
+            statusBadge(icon: "icloud.fill",   label: "云同步", isOK: true,  color: .green)
         } else if settings.isGLMConfigured {
-            statusBadge(icon: "internaldrive",    label: "本地",   isOK: true, color: .green)
+            statusBadge(icon: "internaldrive", label: "本地",   isOK: true,  color: .green)
         } else {
-            statusBadge(icon: "xmark.circle",     label: "未就绪", isOK: false, color: .red)
+            statusBadge(icon: "xmark.circle",  label: "未就绪", isOK: false, color: .red)
         }
     }
 
@@ -221,6 +244,46 @@ struct SettingsView: View {
 
     // MARK: - Test Helpers
 
+    /// 从飞书多维表格链接中解析 appToken 和 tableID
+    private func parseBitableURL(_ urlString: String) {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            urlParseResult = nil
+            return
+        }
+        guard let url = URL(string: trimmed),
+              let host = url.host,
+              host.contains("feishu.cn") || host.contains("larkoffice.com") else {
+            urlParseResult = TestResult(success: false, message: "链接格式不正确，需为飞书多维表格链接")
+            return
+        }
+
+        let pathComponents = url.pathComponents
+        guard let baseIndex = pathComponents.firstIndex(of: "base"),
+              baseIndex + 1 < pathComponents.count else {
+            urlParseResult = TestResult(success: false, message: "未找到 /base/ 路径，请确认是多维表格链接")
+            return
+        }
+        let appToken = pathComponents[baseIndex + 1]
+        guard !appToken.isEmpty else {
+            urlParseResult = TestResult(success: false, message: "未找到 App Token")
+            return
+        }
+
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let tableID = components?.queryItems?.first(where: { $0.name == "table" })?.value ?? ""
+
+        settings.bitableAppToken = appToken
+
+        if tableID.isEmpty {
+            settings.tableID = ""
+            urlParseResult = TestResult(success: false, message: "链接中缺少 Table ID 参数，请在浏览器中打开此链接，再重新复制链接")
+        } else {
+            settings.tableID = tableID
+            urlParseResult = TestResult(success: true, message: "解析成功 ✓")
+        }
+    }
+
     private func testGLMConnection() async {
         isTestingGLM = true
         glmTestResult = nil
@@ -257,7 +320,7 @@ struct SettingsView: View {
         feishuTestResult = nil
         defer { isTestingFeishu = false }
 
-        let service = FeishuBitableService()
+        let service = FeishuBitableService.shared
         do {
             let message = try await service.testConnection(
                 appID: settings.feishuAppID,
@@ -271,26 +334,6 @@ struct SettingsView: View {
         }
     }
 
-    private func createExpenseTable() async {
-        isCreatingTable = true
-        createTableResult = nil
-        defer { isCreatingTable = false }
-
-        let service = FeishuBitableService()
-        do {
-            let result = try await service.createExpenseTable(
-                appID: settings.feishuAppID,
-                appSecret: settings.feishuAppSecret
-            )
-            settings.bitableAppToken = result.appToken
-            settings.tableID = result.tableID
-            createTableResult = TestResult(success: true, message: "表格创建成功 ✓ 已自动填入 Token 和 Table ID")
-            feishuExpanded = true
-        } catch {
-            createTableResult = TestResult(success: false, message: "创建失败: \(error.localizedDescription)")
-        }
-    }
-
     private func testResultRow(_ result: TestResult) -> some View {
         HStack {
             Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -299,6 +342,27 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(result.success ? .green : .red)
         }
+    }
+
+    @MainActor
+    private func resetAll() {
+        settings.glmAPIKey = ""
+        settings.userName = ""
+        settings.feishuSyncEnabled = false
+        settings.feishuAppID = ""
+        settings.feishuAppSecret = ""
+        settings.bitableAppToken = ""
+        settings.tableID = ""
+        settings.fieldAmount = "金额"
+        settings.fieldMerchant = "商户"
+        settings.fieldDate = "日期"
+        settings.fieldNotes = "备注"
+        settings.fieldUserName = "记账成员"
+        bitableURLInput = ""
+        urlParseResult = nil
+
+        ExpenseRecordStore.shared.clear()
+        IntentLogger.shared.clear()
     }
 }
 
@@ -335,16 +399,16 @@ struct ExpenseRecordRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: categoryIcon(record))
+            Image(systemName: categoryIcon(record.category))
                 .font(.title3)
                 .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
-                .background(RoundedRectangle(cornerRadius: 8).fill(categoryColor(record)))
+                .background(RoundedRectangle(cornerRadius: 8).fill(categoryColor(record.category)))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.merchant)
                     .font(.subheadline).fontWeight(.medium)
-                Text("\(record.primaryCategory) · \(record.subCategory) · \(record.displayDate)")
+                Text("\(record.category) · \(record.displayDate)")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -356,33 +420,53 @@ struct ExpenseRecordRow: View {
         .padding(.vertical, 2)
     }
 
-    private func categoryIcon(_ record: ExpenseRecord) -> String {
-        switch record.primaryCategory {
-        case "餐饮":    return "fork.knife"
-        case "行车交通": return "car.fill"
-        case "购物消费": return "bag.fill"
-        case "休闲娱乐": return "gamecontroller.fill"
-        case "医疗":    return "cross.fill"
-        case "居家生活": return "house.fill"
-        case "人情费用": return "gift.fill"
-        case "公益":    return "heart.fill"
-        case "保险":    return "shield.fill"
-        default:       return "creditcard.fill"
+    private func categoryIcon(_ category: String) -> String {
+        switch category {
+        case "外出就餐", "外卖", "水果", "零食", "买菜", "奶茶", "饮料酒水":
+            return "fork.knife"
+        case "地铁公交", "长途交通", "打车":
+            return "car.fill"
+        case "生活用品", "电子数码", "美妆护肤", "衣裤鞋帽", "书报杂志", "珠宝首饰", "宠物", "美发":
+            return "bag.fill"
+        case "娱乐", "旅游", "按摩", "运动":
+            return "gamecontroller.fill"
+        case "医疗", "药物":
+            return "cross.fill"
+        case "物业费", "水电燃气", "电器", "手机话费":
+            return "house.fill"
+        case "红包", "礼物":
+            return "gift.fill"
+        case "慈善":
+            return "heart.fill"
+        case "保险":
+            return "shield.fill"
+        default:
+            return "creditcard.fill"
         }
     }
 
-    private func categoryColor(_ record: ExpenseRecord) -> Color {
-        switch record.primaryCategory {
-        case "餐饮":    return .orange
-        case "行车交通": return .blue
-        case "购物消费": return .purple
-        case "休闲娱乐": return .pink
-        case "医疗":    return .red
-        case "居家生活": return .teal
-        case "人情费用": return .yellow
-        case "公益":    return .green
-        case "保险":    return .indigo
-        default:       return .gray
+    private func categoryColor(_ category: String) -> Color {
+        switch category {
+        case "外出就餐", "外卖", "水果", "零食", "买菜", "奶茶", "饮料酒水":
+            return .orange
+        case "地铁公交", "长途交通", "打车":
+            return .blue
+        case "生活用品", "电子数码", "美妆护肤", "衣裤鞋帽", "书报杂志", "珠宝首饰", "宠物", "美发":
+            return .purple
+        case "娱乐", "旅游", "按摩", "运动":
+            return .pink
+        case "医疗", "药物":
+            return .red
+        case "物业费", "水电燃气", "电器", "手机话费":
+            return .teal
+        case "红包", "礼物":
+            return .yellow
+        case "慈善":
+            return .green
+        case "保险":
+            return .indigo
+        default:
+            return .gray
         }
     }
 }

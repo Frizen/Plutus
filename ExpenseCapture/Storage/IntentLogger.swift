@@ -17,10 +17,15 @@ struct LogEntry: Codable, Identifiable {
     }
 
     var timeString: String {
+        LogEntry.timeFormatter.string(from: timestamp)
+    }
+
+    // static 避免每次访问 timeString 时重复创建 DateFormatter
+    private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
-        return f.string(from: timestamp)
-    }
+        return f
+    }()
 }
 
 // MARK: - Logger
@@ -37,7 +42,7 @@ class IntentLogger {
     func log(_ message: String, level: LogEntry.LogLevel = .info) {
         let entry = LogEntry(id: UUID(), timestamp: Date(), level: level, message: message)
         queue.async {
-            var entries = self.loadEntries()
+            var entries = self._loadEntries()
             entries.insert(entry, at: 0)
             if entries.count > self.maxEntries {
                 entries = Array(entries.prefix(self.maxEntries))
@@ -48,7 +53,13 @@ class IntentLogger {
         }
     }
 
+    // 供外部（LogView）调用：通过 queue.sync 保证线程安全
     func loadEntries() -> [LogEntry] {
+        queue.sync { _loadEntries() }
+    }
+
+    // 内部使用，必须在 queue 上调用
+    private func _loadEntries() -> [LogEntry] {
         guard let data = UserDefaults.standard.data(forKey: storageKey),
               let entries = try? JSONDecoder().decode([LogEntry].self, from: data) else {
             return []
@@ -57,6 +68,8 @@ class IntentLogger {
     }
 
     func clear() {
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        queue.async {
+            UserDefaults.standard.removeObject(forKey: self.storageKey)
+        }
     }
 }

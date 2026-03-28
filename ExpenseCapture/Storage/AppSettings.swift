@@ -5,6 +5,12 @@ class AppSettings: ObservableObject {
     // GLM (智谱 AI)
     @AppStorage("glm_api_key") var glmAPIKey: String = ""
 
+    // 记账成员
+    @AppStorage("user_name") var userName: String = ""
+
+    // 飞书同步开关
+    @AppStorage("feishu_sync_enabled") var feishuSyncEnabled: Bool = false
+
     // 飞书自建应用
     @AppStorage("feishu_app_id") var feishuAppID: String = ""
     @AppStorage("feishu_app_secret") var feishuAppSecret: String = ""
@@ -13,13 +19,12 @@ class AppSettings: ObservableObject {
     @AppStorage("feishu_bitable_app_token") var bitableAppToken: String = ""
     @AppStorage("feishu_table_id") var tableID: String = ""
 
-    // 飞书字段名映射（默认值与 README 一致，用户可按实际表格修改）
-    @AppStorage("field_amount")           var fieldAmount: String          = "金额"
-    @AppStorage("field_primary_category") var fieldPrimaryCategory: String = "一级分类"
-    @AppStorage("field_sub_category")     var fieldSubCategory: String     = "二级分类"
-    @AppStorage("field_merchant")         var fieldMerchant: String        = "商户"
-    @AppStorage("field_date")             var fieldDate: String            = "消费时间"
-    @AppStorage("field_notes")            var fieldNotes: String           = "备注"
+    // 飞书字段名映射
+    @AppStorage("field_amount")    var fieldAmount:    String = "金额"
+    @AppStorage("field_merchant")  var fieldMerchant:  String = "商户"
+    @AppStorage("field_date")      var fieldDate:      String = "日期"
+    @AppStorage("field_notes")     var fieldNotes:     String = "备注"
+    @AppStorage("field_user_name") var fieldUserName:  String = "记账成员"
 
     // 验证配置完整性
     var isGLMConfigured: Bool {
@@ -33,12 +38,17 @@ class AppSettings: ObservableObject {
         !tableID.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// 飞书同步开关已开启且配置完整
+    var isFeishuSyncActive: Bool {
+        feishuSyncEnabled && isFeishuConfigured
+    }
+
     /// GLM 已配置即可使用（飞书为可选云同步）
     var isReadyToUse: Bool {
         isGLMConfigured
     }
 
     var isFullyConfigured: Bool {
-        isGLMConfigured && isFeishuConfigured
+        isGLMConfigured && isFeishuSyncActive
     }
 }

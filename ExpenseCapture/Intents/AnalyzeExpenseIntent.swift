@@ -76,17 +76,17 @@ struct AnalyzeExpenseIntent: AppIntent {
             log.log("transactionDate 未提取到，将使用当前时间", level: .warning)
         }
 
-        // 5. 创建本地记录（分类暂为「其他」，Phase2 补全）
-        let record = ExpenseRecord(from: core)
+        // 6. 创建本地记录（分类暂为「其他」，Phase 2 补全）
+        let record = ExpenseRecord(from: core, userName: settings.userName)
         log.log("核心字段就绪: \(record.displayAmount) @ \(record.merchant)", level: .success)
 
-        // 6. Phase1 写入飞书（只写金额、商户、时间）
+        // 7. Phase 1 写入飞书（只写金额、商户、时间；仅在飞书同步开启且配置完整时执行）
         var feishuRecordID: String? = nil
-        if settings.isFeishuConfigured {
+        var feishuWriteFailed = false
+        if settings.isFeishuSyncActive {
             log.log("Phase1 写入飞书...", level: .info)
-            let feishuService = FeishuBitableService()
             do {
-                feishuRecordID = try await feishuService.addRecord(
+                feishuRecordID = try await FeishuBitableService.shared.addRecord(
                     expense: record,
                     appID: settings.feishuAppID,
                     appSecret: settings.feishuAppSecret,
@@ -96,56 +96,42 @@ struct AnalyzeExpenseIntent: AppIntent {
                 )
                 log.log("Phase1 飞书写入成功 ✓ recordID=\(feishuRecordID ?? "-")", level: .success)
             } catch {
+                feishuWriteFailed = true
                 log.log("Phase1 飞书写入失败: \(error.localizedDescription)", level: .error)
             }
         } else {
-            log.log("飞书未配置，跳过写入", level: .warning)
+            log.log("飞书同步未启用，跳过写入", level: .warning)
         }
 
-        // 7. 保存本地（先以「其他」占位）
+        // 8. 保存本地（先以「其他」占位）
         await saveLocalRecord(record)
         log.log("本地记录已保存（Phase1）", level: .success)
 
-        // 8. 返回 dialog（Phase1 完成，用户已感知结果）
-        let modeTag = settings.isFeishuConfigured ? "" : "（仅本地）"
-        let dialogText = "✅已记账\(modeTag) \(record.displayAmount) \(record.merchant)"
+        // 9. 返回 dialog（Phase1 完成，用户已感知结果）
+        let dialogText: String
+        if settings.isFeishuSyncActive && feishuWriteFailed {
+            dialogText = "✅已记账（仅本地，飞书写入失败）\(record.displayAmount) \(record.merchant)"
+        } else if settings.isFeishuSyncActive {
+            dialogText = "✅已记账 \(record.displayAmount) \(record.merchant)"
+        } else {
+            dialogText = "✅已记账（仅本地）\(record.displayAmount) \(record.merchant)"
+        }
         log.log("▶️ Phase1 完成，返回 dialog", level: .success)
 
-        // 9. Phase2：后台静默识别分类和备注
+        // 10. Phase 2：后台静默识别分类，仅更新本地记录，不写飞书
         let recordID = record.id
-        let feishuID = feishuRecordID
         let apiKey = settings.glmAPIKey
         let merchant = record.merchant
-        let base64ForPhase2 = imageBase64  // 复用已编码的图片，避免重复编码
+        let base64ForPhase2 = imageBase64
 
         Task {
             log.log("Phase2：后台识别分类...", level: .info)
             do {
                 let detail = try await glmService.analyzeDetail(imageBase64: base64ForPhase2, merchant: merchant, apiKey: apiKey)
-                log.log("Phase2 完成: subCategory=\(detail.subCategory)", level: .debug)
+                log.log("Phase2 完成: category=\(detail.subCategory)", level: .debug)
 
-                // 更新本地记录
                 await updateLocalRecord(id: recordID, with: detail)
                 log.log("Phase2 本地记录已更新", level: .success)
-
-                // PATCH 飞书
-                if settings.isFeishuConfigured, let fid = feishuID {
-                    let feishuService = FeishuBitableService()
-                    do {
-                        try await feishuService.updateRecord(
-                            recordID: fid,
-                            detail: detail,
-                            appID: settings.feishuAppID,
-                            appSecret: settings.feishuAppSecret,
-                            appToken: settings.bitableAppToken,
-                            tableID: settings.tableID,
-                            fieldNames: FeishuFieldNames(settings: settings)
-                        )
-                        log.log("Phase2 飞书更新成功 ✓", level: .success)
-                    } catch {
-                        log.log("Phase2 飞书更新失败: \(error.localizedDescription)", level: .error)
-                    }
-                }
             } catch {
                 log.log("Phase2 识别失败: \(error.localizedDescription)", level: .error)
             }
@@ -158,14 +144,12 @@ struct AnalyzeExpenseIntent: AppIntent {
 
     @MainActor
     private func saveLocalRecord(_ record: ExpenseRecord) {
-        let store = ExpenseRecordStore()
-        store.add(record)
+        ExpenseRecordStore.shared.add(record)
     }
 
     @MainActor
     private func updateLocalRecord(id: UUID, with detail: DetailExtraction) {
-        let store = ExpenseRecordStore()
-        store.update(id: id, with: detail)
+        ExpenseRecordStore.shared.update(id: id, with: detail)
     }
 }
 
