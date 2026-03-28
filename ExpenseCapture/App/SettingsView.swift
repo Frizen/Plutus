@@ -108,8 +108,8 @@ struct SettingsView: View {
                             Label("飞书 Bitable", systemImage: "tablecells")
                             Spacer()
                             Image(systemName: feishuExpanded ? "chevron.up" : "chevron.down")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.primary)
                         }
                     }
                     .buttonStyle(.plain)
