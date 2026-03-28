@@ -114,8 +114,10 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.plain)
                 } footer: {
-                    Text("「一键建表」需在飞书开放平台为应用开通 drive:drive 权限。")
-                        .font(.caption)
+                    if feishuExpanded {
+                        Text("「一键建表」需在飞书开放平台为应用开通 drive:drive 权限。")
+                            .font(.caption)
+                    }
                 }
 
                 // MARK: 字段名映射
