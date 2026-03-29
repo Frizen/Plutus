@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @AppStorage("setup_wizard_completed") private var wizardCompleted = false
+
     var body: some View {
         TabView {
             RecordsView()
@@ -17,6 +19,12 @@ struct ContentView: View {
                 .tabItem {
                     Label("日志", systemImage: "terminal")
                 }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { !wizardCompleted },
+            set: { if !$0 { wizardCompleted = true } }
+        )) {
+            SetupWizardView()
         }
     }
 }

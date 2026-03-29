@@ -144,6 +144,18 @@ struct SettingsView: View {
                     Label("Action Button 配置", systemImage: "record.circle")
                 }
 
+                // MARK: 配置向导
+                Section {
+                    Button {
+                        UserDefaults.standard.set(false, forKey: "setup_wizard_completed")
+                    } label: {
+                        HStack {
+                            Image(systemName: "wand.and.stars")
+                            Text("重新运行配置向导")
+                        }
+                    }
+                }
+
                 // MARK: 重置
                 Section {
                     Button(role: .destructive) {
@@ -215,10 +227,20 @@ struct SettingsView: View {
 
     // MARK: - Action Button Guide
 
+    private let shortcutURL = URL(string: "https://www.icloud.com/shortcuts/925b64d4982e4559a061f8bfb920913d")!
+
     private var actionButtonGuide: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("按以下步骤配置 Action Button：")
-                .font(.subheadline).fontWeight(.medium)
+            Link(destination: shortcutURL) {
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.down")
+                    Text("获取快捷指令")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
             ForEach(Array(guideSteps.enumerated()), id: \.offset) { index, step in
                 HStack(alignment: .top, spacing: 10) {
                     Text("\(index + 1)")
@@ -228,6 +250,7 @@ struct SettingsView: View {
                         .background(Circle().fill(Color.accentColor))
                     Text(step)
                         .font(.subheadline).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -235,10 +258,7 @@ struct SettingsView: View {
     }
 
     private let guideSteps = [
-        "打开「快捷指令」App → 点击右上角 + 新建快捷指令",
-        "添加动作：搜索「截屏」并添加",
-        "继续添加动作：搜索「记录一笔消费」（本 App 提供）→ 长按截图栏右侧的 ⊕ 图标 → 在弹出菜单中选择「截屏」变量（而非选择本地文件）",
-        "保存快捷指令，命名为「立即记账」",
+        "点击上方「获取快捷指令」，在快捷指令 App 中完成添加",
         "进入「设置 → 操作按钮」→ 选择「快捷指令」→ 选择「立即记账」"
     ]
 
