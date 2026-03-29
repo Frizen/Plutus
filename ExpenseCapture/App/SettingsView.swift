@@ -72,8 +72,17 @@ struct SettingsView: View {
                 // MARK: 飞书连接配置（仅开关开启时显示）
                 if settings.feishuSyncEnabled {
                     Section {
-                        LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
-                        LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
+                        if settings.isUsingTestFeishuCredentials {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles").foregroundStyle(.orange)
+                                Text("当前使用内置测试飞书应用")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
+                            LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
+                        }
 
                         LabeledTextField(label: "表格链接", placeholder: "https://xxx.feishu.cn/base/...", text: $bitableURLInput)
                             .onChange(of: bitableURLInput) { _, newValue in
@@ -264,44 +273,13 @@ struct SettingsView: View {
 
     // MARK: - Test Helpers
 
-    /// 从飞书多维表格链接中解析 appToken 和 tableID
+    /// 代理给 AppSettings.parseBitableURL，更新本地 urlParseResult
     private func parseBitableURL(_ urlString: String) {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        guard let result = settings.parseBitableURL(urlString) else {
             urlParseResult = nil
             return
         }
-        guard let url = URL(string: trimmed),
-              let host = url.host,
-              host.contains("feishu.cn") || host.contains("larkoffice.com") else {
-            urlParseResult = TestResult(success: false, message: "链接格式不正确，需为飞书多维表格链接")
-            return
-        }
-
-        let pathComponents = url.pathComponents
-        guard let baseIndex = pathComponents.firstIndex(of: "base"),
-              baseIndex + 1 < pathComponents.count else {
-            urlParseResult = TestResult(success: false, message: "未找到 /base/ 路径，请确认是多维表格链接")
-            return
-        }
-        let appToken = pathComponents[baseIndex + 1]
-        guard !appToken.isEmpty else {
-            urlParseResult = TestResult(success: false, message: "未找到 App Token")
-            return
-        }
-
-        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let tableID = components?.queryItems?.first(where: { $0.name == "table" })?.value ?? ""
-
-        settings.bitableAppToken = appToken
-
-        if tableID.isEmpty {
-            settings.tableID = ""
-            urlParseResult = TestResult(success: false, message: "链接中缺少 Table ID 参数，请在浏览器中打开此链接，再重新复制链接")
-        } else {
-            settings.tableID = tableID
-            urlParseResult = TestResult(success: true, message: "解析成功 ✓")
-        }
+        urlParseResult = TestResult(success: result.success, message: result.message)
     }
 
     private func testGLMConnection() async {

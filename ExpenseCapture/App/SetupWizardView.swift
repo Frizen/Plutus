@@ -14,48 +14,55 @@ struct SetupWizardView: View {
     @State private var isDraggingHorizontally = false
 
     // MARK: 前进动画
-    /// 正在被推出的页码（push 动画期间有值）
     @State private var pushingOutPage: Int? = nil
-    /// 新页从屏幕右侧滑入时的 x 偏移（screenWidth → 0）
     @State private var incomingOffset: CGFloat = 0
 
+    // MARK: 屏幕宽度（由 GeometryReader 写入，供手势和动画使用）
+    @State private var screenWidth: CGFloat = 390
+
     private var isPushAnimating: Bool { pushingOutPage != nil }
-    private let W = UIScreen.main.bounds.width
+
+    // MARK: 动画时长常量
+    private let pushDuration: TimeInterval = 0.35
+    private let popDuration:  TimeInterval = 0.28
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 进度点：固定在顶部，不参与滑动
-            ProgressDots(current: stack.last ?? 0, total: 5)
-                .padding(.top, 20)
-                .padding(.bottom, 4)
+        GeometryReader { geo in
+            let W = geo.size.width
+            VStack(spacing: 0) {
+                // 进度点：固定在顶部，不参与滑动
+                ProgressDots(current: stack.last ?? 0, total: 5)
+                    .padding(.top, 20)
+                    .padding(.bottom, 4)
+                ZStack {                    // ── 下层：拖拽返回时的视差页（只在拖拽过程中渲染）
+                    if stack.count >= 2, !isPushAnimating, dragOffset > 0 {
+                        pageContent(for: stack[stack.count - 2])
+                            .offset(x: -W * 0.25 + dragOffset * 0.25)
+                            .allowsHitTesting(false)
+                    }
 
-            ZStack {
-                // ── 下层：拖拽返回时的视差页（只在拖拽过程中渲染）
-                if stack.count >= 2, !isPushAnimating, dragOffset > 0 {
-                    pageContent(for: stack[stack.count - 2])
-                        .offset(x: -W * 0.25 + dragOffset * 0.25)
-                        .allowsHitTesting(false)
+                    // ── 中层：push 动画时被推走的旧页（滑向左侧）
+                    if let outPage = pushingOutPage {
+                        pageContent(for: outPage)
+                            .offset(x: incomingOffset * 0.25 - W * 0.25)
+                            .allowsHitTesting(false)
+                    }
+
+                    // ── 上层：当前页
+                    pageContent(for: stack.last ?? 0)
+                        .offset(x: isPushAnimating ? incomingOffset : dragOffset)
+                        .allowsHitTesting(!isPushAnimating)
                 }
-
-                // ── 中层：push 动画时被推走的旧页（滑向左侧）
-                if let outPage = pushingOutPage {
-                    pageContent(for: outPage)
-                        .offset(x: incomingOffset * 0.25 - W * 0.25)
-                        .allowsHitTesting(false)
-                }
-
-                // ── 上层：当前页
-                pageContent(for: stack.last ?? 0)
-                    .offset(x: isPushAnimating ? incomingOffset : dragOffset)
-                    .allowsHitTesting(!isPushAnimating)
+                .simultaneousGesture(swipeBackGesture(W: W))
             }
-            .simultaneousGesture(swipeBackGesture)
+            .onAppear { screenWidth = W }
+            .onChange(of: W) { _, newW in screenWidth = newW }
         }
     }
 
     // MARK: - 右滑返回手势
 
-    private var swipeBackGesture: some Gesture {
+    private func swipeBackGesture(W: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 10)
             .onChanged { value in
                 guard !isPushAnimating, stack.count > 1 else { return }
@@ -72,15 +79,15 @@ struct SetupWizardView: View {
                 let shouldPop = value.translation.width > W * 0.35 ||
                                 value.predictedEndTranslation.width > W * 0.55
                 if shouldPop {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    withAnimation(.spring(response: popDuration, dampingFraction: 0.86)) {
                         dragOffset = W
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + popDuration) {
                         stack.removeLast()
                         dragOffset = 0
                     }
                 } else {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    withAnimation(.spring(response: popDuration, dampingFraction: 0.86)) {
                         dragOffset = 0
                     }
                 }
@@ -89,17 +96,17 @@ struct SetupWizardView: View {
 
     // MARK: - 前进
 
-    func advance() {
+    private func advance() {
         guard !isPushAnimating else { return }
         let current = stack.last ?? 0
         let next = (current == 2 && !settings.feishuSyncEnabled) ? 4 : current + 1
         pushingOutPage = current
-        incomingOffset = W
+        incomingOffset = screenWidth
         stack.append(next)
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+        withAnimation(.spring(response: pushDuration, dampingFraction: 0.9)) {
             incomingOffset = 0
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + pushDuration + 0.05) {
             pushingOutPage = nil
         }
     }
@@ -155,13 +162,14 @@ private struct WizardPageContainer<Content: View, BottomContent: View>: View {
                 .padding(.bottom, 24)
             }
 
-            // 底部按钮：固定在底部
+            // 底部按钮：固定在底部，顶部加分割线
             VStack(spacing: 10) {
                 bottomContent()
             }
             .padding(.horizontal, 28)
             .padding(.top, 12)
             .padding(.bottom, 28)
+            .overlay(alignment: .top) { Divider() }
         }
         .background(Color(.systemBackground))
     }
@@ -233,11 +241,10 @@ private struct WizardGLMPage: View {
     var body: some View {
         WizardPageContainer {
             Image(systemName: "brain.head.profile")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 80, height: 80)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                .font(.system(size: 64))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 80, height: 80)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             Text("配置 GLM API Key")
                 .font(.title).bold()
@@ -390,15 +397,17 @@ private struct WizardGLMPage: View {
         request.timeoutInterval = 10
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse {
-                if http.statusCode == 200 {
-                    onNext()
-                } else if http.statusCode == 401 {
-                    glmTestResult = WizardTestResult(success: false, message: "API Key 无效，请检查")
-                } else {
-                    // 其他非 401 状态视为可用
-                    onNext()
-                }
+            guard let http = response as? HTTPURLResponse else {
+                glmTestResult = WizardTestResult(success: false, message: "无法获取服务器响应")
+                return
+            }
+            if http.statusCode == 200 {
+                onNext()
+            } else if http.statusCode == 401 {
+                glmTestResult = WizardTestResult(success: false, message: "API Key 无效，请检查")
+            } else {
+                // 其他非 401 状态视为可用
+                onNext()
             }
         } catch {
             glmTestResult = WizardTestResult(success: false, message: "连接失败: \(error.localizedDescription)")
@@ -447,11 +456,10 @@ private struct WizardFeishuPage: View {
     var body: some View {
         WizardPageContainer {
             Image(systemName: "arrow.triangle.2.circlepath.icloud")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 80, height: 80)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                .font(.system(size: 64))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 80, height: 80)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             Text("同步数据 (可选)")
                 .font(.title).bold()
@@ -709,35 +717,11 @@ private struct WizardFeishuPage: View {
     }
 
     private func parseBitableURL(_ urlString: String) {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { urlParseResult = nil; return }
-        guard let url = URL(string: trimmed),
-              let host = url.host,
-              host.contains("feishu.cn") || host.contains("larkoffice.com") else {
-            urlParseResult = WizardTestResult(success: false, message: "链接格式不正确，需为飞书多维表格链接")
+        guard let result = settings.parseBitableURL(urlString) else {
+            urlParseResult = nil
             return
         }
-        let pathComponents = url.pathComponents
-        guard let baseIndex = pathComponents.firstIndex(of: "base"),
-              baseIndex + 1 < pathComponents.count else {
-            urlParseResult = WizardTestResult(success: false, message: "未找到 /base/ 路径，请确认是多维表格链接")
-            return
-        }
-        let appToken = pathComponents[baseIndex + 1]
-        guard !appToken.isEmpty else {
-            urlParseResult = WizardTestResult(success: false, message: "未找到 App Token")
-            return
-        }
-        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        let tableID = components?.queryItems?.first(where: { $0.name == "table" })?.value ?? ""
-        settings.bitableAppToken = appToken
-        if tableID.isEmpty {
-            settings.tableID = ""
-            urlParseResult = WizardTestResult(success: false, message: "链接中缺少 Table ID 参数，请在浏览器打开后重新复制")
-        } else {
-            settings.tableID = tableID
-            urlParseResult = WizardTestResult(success: true, message: "解析成功 ✓")
-        }
+        urlParseResult = WizardTestResult(success: result.success, message: result.message)
     }
 }
 
@@ -750,11 +734,10 @@ private struct WizardMemberPage: View {
     var body: some View {
         WizardPageContainer {
             Image(systemName: "person.crop.circle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 80, height: 80)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                .font(.system(size: 64))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 80, height: 80)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             Text("记账成员名")
                 .font(.title).bold()
@@ -794,11 +777,10 @@ private struct WizardActionButtonPage: View {
     var body: some View {
         WizardPageContainer {
             Image(systemName: "record.circle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 80, height: 80)
-                    .foregroundStyle(Color.accentColor)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                .font(.system(size: 64))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 80, height: 80)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             Text("配置 Action Button")
                 .font(.title).bold()

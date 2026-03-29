@@ -1,32 +1,31 @@
 # Plutus 产品迭代详情
 
-## v0.25.0 — 向导自定义滑动返回手势
+## v0.26.0 — Code review 修复
 **日期**：2026-03
 
 ### 变更内容
-- 移除 NavigationStack，改用 ZStack + DragGesture 实现向导导航：全屏宽度均可触发右滑返回，当前页随手指平移，背后页有视差效果（偏移量 25%），手势释放后弹性动画回弹或完成返回
-- 前进动画：新页从右侧滑入，旧页同步向左退出，视觉效果与 iOS 风格一致但完全自定义
-- 滑动判定：水平位移 > 35% 屏宽，或预测终点 > 55% 屏宽时触发返回，防止误触
+- `parseBitableURL` 从 `SettingsView` / `SetupWizardView` 提取到 `AppSettings` 扩展，两处共享同一实现，消除重复代码
+- 测试飞书凭证保护：`AppSettings` 新增 `isUsingTestFeishuCredentials`，配置页在使用测试应用时隐藏 App ID / Secret 输入框，改为「当前使用内置测试飞书应用」提示
+- 修复 GLM 连接校验：`handleNext()` 中 `response as? HTTPURLResponse` 失败时不再静默返回，改为显示「无法获取服务器响应」错误
+- 导航动画时长提取为 `pushDuration` / `popDuration` 常量，`DispatchQueue.asyncAfter` 延迟与之对齐，消除硬编码耦合
+- 屏幕宽度改用 `GeometryReader` 获取，移除已在 iOS 16 废弃的 `UIScreen.main.bounds.width`
+- SF Symbol 图标从 `.resizable().frame()` 改为 `.font(.system(size: 64))`，尺寸渲染更稳定
+- `WizardPageContainer` 底部按钮区添加 `Divider`，防止内容较长时视觉混淆
+- `advance()` 加 `private` 修饰符，与其他方法保持一致
+- 合并 v0.23–v0.25 散碎版本，CHANGELOG 按 commit 粒度整理
 
 ---
 
-## v0.24.0 — 配置向导：测试账号一键体验
+## v0.25.0 — 配置向导（Setup Wizard）
 **日期**：2026-03
 
 ### 变更内容
-- GLM 配置页新增「使用测试 API Key / 使用我自己的 Key」二选一，测试 Key 静默写入，不暴露给用户
-- 飞书配置页同步升级：开启同步后提供「使用测试文档 / 使用我自己的飞书应用」选项；选择测试文档后点击「一键创建测试表格」，自动完成建表、建字段、开放公共编辑权限，并将凭证静默写入 App，无需手动填写任何信息
-
----
-
-## v0.23.0 — 配置向导（Setup Wizard）
-**日期**：2026-03
-
-### 变更内容
-- 新增首次启动配置向导：应用初次安装或重置后自动弹出全屏向导，分 5 步引导用户完成 GLM API Key 填写、记账成员名配置、飞书同步配置和 Action Button 设置，显著降低上手门槛
-- GLM Key 页内置「测试连接」按钮，填写有效 Key 后立即可验证，「下一步」按钮仅在 Key 非空时激活
-- 飞书页通过 Toggle 控制展开/折叠，可选跳过，折叠时显示稍后在配置页补充的提示
-- 配置 Tab 底部新增「重新运行配置向导」按钮，随时可重新进入向导
+- 新增首次启动配置向导：5 步全屏向导（欢迎 / GLM Key / 飞书同步 / 记账成员名 / Action Button），应用初次安装后自动弹出，显著降低上手门槛
+- GLM 页：「测试 Key / 自有 Key」二选一，自有 Key 点「下一步」时自动验证，测试 Key 静默写入不暴露
+- 飞书页：「一键创建测试表格 / 自有多维表格」，测试表格自动建字段并开放公共编辑权限；飞书未开启时跳过「记账成员名」页
+- Action Button 页：提供 iCloud 快捷指令分享链接，一键添加；配置 Tab 引导同步更新
+- 导航采用自定义 ZStack + DragGesture：全屏右滑返回，内容区随手指平移，背后页视差跟随，进度点固定不动
+- `FeishuBitableService` 新增 `createExpenseBitable()`，并发建字段（`withThrowingTaskGroup`），`getFirstTableID` 加 3 次重试
 
 ---
 
