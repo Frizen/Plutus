@@ -72,17 +72,8 @@ struct SettingsView: View {
                 // MARK: 飞书连接配置（仅开关开启时显示）
                 if settings.feishuSyncEnabled {
                     Section {
-                        if settings.isUsingTestFeishuCredentials {
-                            HStack(spacing: 8) {
-                                Image(systemName: "sparkles").foregroundStyle(.orange)
-                                Text("当前使用内置测试飞书应用")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
-                            LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
-                        }
+                        LabeledTextField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID)
+                        LabeledTextField(label: "App Secret", placeholder: "...",    text: $settings.feishuAppSecret, isSecure: true)
 
                         LabeledTextField(label: "表格链接", placeholder: "https://xxx.feishu.cn/base/...", text: $bitableURLInput)
                             .onChange(of: bitableURLInput) { _, newValue in

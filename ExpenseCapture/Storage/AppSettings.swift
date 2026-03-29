@@ -15,11 +15,6 @@ class AppSettings: ObservableObject {
     @AppStorage("feishu_app_id") var feishuAppID: String = ""
     @AppStorage("feishu_app_secret") var feishuAppSecret: String = ""
 
-    /// 当前使用的是内置测试飞书应用（凭证不对用户展示）
-    var isUsingTestFeishuCredentials: Bool {
-        feishuAppID == "cli_a94fae2862ba9bc6"
-    }
-
     // 飞书多维表格
     @AppStorage("feishu_bitable_app_token") var bitableAppToken: String = ""
     @AppStorage("feishu_table_id") var tableID: String = ""
