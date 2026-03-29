@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RecordsView: View {
     @ObservedObject private var recordStore = ExpenseRecordStore.shared
-    @StateObject private var settings = AppSettings()
+    @EnvironmentObject private var settings: AppSettings
     @State private var showExportSheet = false
     @State private var exportURL: URL?
 

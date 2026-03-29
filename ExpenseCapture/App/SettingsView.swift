@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Settings Tab
 
 struct SettingsView: View {
-    @StateObject private var settings = AppSettings()
+    @EnvironmentObject private var settings: AppSettings
 
     @State private var isTestingGLM = false
     @State private var isTestingFeishu = false
@@ -467,4 +467,5 @@ struct TestResult {
 
 #Preview {
     SettingsView()
+        .environmentObject(AppSettings())
 }

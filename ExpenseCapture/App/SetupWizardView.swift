@@ -4,7 +4,7 @@ import SwiftUI
 
 struct SetupWizardView: View {
     @AppStorage("setup_wizard_completed") private var wizardCompleted = false
-    @StateObject private var settings = AppSettings()
+    @EnvironmentObject private var settings: AppSettings
 
     /// 导航历史栈，初始含 Welcome 页（页码 0）
     @State private var stack: [Int] = [0]
@@ -850,4 +850,5 @@ private func wizardTestResultRow(_ result: WizardTestResult) -> some View {
 
 #Preview {
     SetupWizardView()
+        .environmentObject(AppSettings())
 }
