@@ -90,16 +90,21 @@ struct ExpenseRecord: Codable, Identifiable {
         if let dateStr = transactionDate, !dateStr.isEmpty {
             return dateStr
         }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        formatter.locale = Locale(identifier: "zh_CN")
-        return formatter.string(from: recordedAt)
+        return ExpenseRecord.displayDateFormatter.string(from: recordedAt)
     }
+
+    private static let displayDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        f.locale = Locale(identifier: "zh_CN")
+        return f
+    }()
 }
 
 // MARK: - Local Record Store（单例，避免多实例数据不同步）
 
+@MainActor
 class ExpenseRecordStore: ObservableObject {
     static let shared = ExpenseRecordStore()
 

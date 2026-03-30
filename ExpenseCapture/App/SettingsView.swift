@@ -138,7 +138,7 @@ struct SettingsView: View {
                 // MARK: 配置向导
                 Section {
                     Button {
-                        UserDefaults.standard.set(false, forKey: "setup_wizard_completed")
+                        UserDefaults.standard.set(false, forKey: AppSettings.wizardCompletedKey)
                     } label: {
                         HStack {
                             Image(systemName: "wand.and.stars")
@@ -291,8 +291,10 @@ struct SettingsView: View {
                     glmTestResult = TestResult(success: true, message: "GLM API Key 有效 ✓")
                 } else if http.statusCode == 401 {
                     glmTestResult = TestResult(success: false, message: "API Key 无效，请检查")
+                } else if http.statusCode == 429 {
+                    glmTestResult = TestResult(success: false, message: "请求过于频繁，请稍后再试")
                 } else {
-                    glmTestResult = TestResult(success: true, message: "已连接 (状态码 \(http.statusCode))")
+                    glmTestResult = TestResult(success: false, message: "连接异常（状态码 \(http.statusCode)）")
                 }
             }
         } catch {

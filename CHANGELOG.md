@@ -1,5 +1,16 @@
 # Plutus 产品迭代详情
 
+## v0.1.0030 — Code Review 全量修复
+**日期**：2026-03
+
+### 变更内容
+- **稳定性**：`ExpenseRecordStore` 添加 `@MainActor` 标注，`displayDate` 改用 `static let` DateFormatter，避免反复分配
+- **稳定性**：修复 `FeishuBitableService` 中剩余的 `URL(string:)!` 强制解包，全部改为 `guard let` + 抛错，消除潜在崩溃
+- **稳定性**：`IntentLogger` 引入内存缓存（`_entries` 数组），日志写入只操作内存，通过 1s debounce 延迟批量落盘，高频记录时大幅减少 UserDefaults IO
+- **体验**：`RecordsView` 「清空记录」按钮添加二次确认弹窗（confirmationDialog），防止误操作
+- **体验**：CSV 导出改为 RFC 4180 标准格式（所有字段用双引号包围，内部双引号转义为 `""`，换行符替换为空格），同时移至后台线程生成，导出按钮在生成期间显示加载状态
+- **一致性**：`AnalyzeExpenseIntent` 统一使用 `AppSettings.shared` 单例，与 UI 层共享同一配置实例
+
 ## v0.1.0029 — 一键建表改为从模板复制
 **日期**：2026-03
 

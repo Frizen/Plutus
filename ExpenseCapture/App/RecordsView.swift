@@ -5,6 +5,8 @@ struct RecordsView: View {
     @EnvironmentObject private var settings: AppSettings
     @State private var showExportSheet = false
     @State private var exportURL: URL?
+    @State private var showClearConfirm = false
+    @State private var isExporting = false
 
     var body: some View {
         NavigationStack {
@@ -21,7 +23,13 @@ struct RecordsView: View {
                             ExpenseRecordRow(record: record)
                         }
                         Button("清空记录", role: .destructive) {
-                            recordStore.clear()
+                            showClearConfirm = true
+                        }
+                        .confirmationDialog("确认清空所有本地记录？", isPresented: $showClearConfirm, titleVisibility: .visible) {
+                            Button("清空", role: .destructive) { recordStore.clear() }
+                            Button("取消", role: .cancel) {}
+                        } message: {
+                            Text("此操作不可撤销，飞书中的数据不受影响。")
                         }
                     }
                 }
@@ -35,11 +43,15 @@ struct RecordsView: View {
                     // 导出 CSV
                     if !recordStore.records.isEmpty {
                         Button {
-                            exportURL = generateCSV()
-                            if exportURL != nil { showExportSheet = true }
+                            Task { await exportCSV() }
                         } label: {
-                            Image(systemName: "square.and.arrow.up")
+                            if isExporting {
+                                ProgressView().scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                            }
                         }
+                        .disabled(isExporting)
                     }
 
                     // 跳转飞书（仅同步开启且表格链接解析成功时显示）
@@ -64,17 +76,48 @@ struct RecordsView: View {
         return URL(string: "https://feishu.cn/base/\(settings.bitableAppToken)?table=\(settings.tableID)")
     }
 
-    private func generateCSV() -> URL? {
-        var rows: [String] = ["日期,金额,商户,分类,备注,记账成员"]
-        for record in recordStore.records {
-            let date = record.displayDate.replacingOccurrences(of: ",", with: " ")
-            let merchant = record.merchant.replacingOccurrences(of: ",", with: " ")
-            let category = record.category.replacingOccurrences(of: ",", with: " ")
-            let notes = (record.notes ?? "").replacingOccurrences(of: ",", with: " ")
-            let user = record.userName.replacingOccurrences(of: ",", with: " ")
-            rows.append("\(date),\(record.amount),\(merchant),\(category),\(notes),\(user)")
+    private func exportCSV() async {
+        isExporting = true
+        defer { isExporting = false }
+
+        let records = recordStore.records
+        let url = await Task.detached(priority: .userInitiated) {
+            generateCSV(from: records)
+        }.value
+
+        if let url {
+            exportURL = url
+            showExportSheet = true
         }
-        let csv = rows.joined(separator: "\n")
+    }
+
+    /// RFC 4180：所有字段用双引号包围，字段内的双引号转义为 ""，换行符替换为空格
+    private func generateCSV(from records: [ExpenseRecord]) -> URL? {
+        func escape(_ value: String) -> String {
+            let safe = value
+                .replacingOccurrences(of: "\r\n", with: " ")
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+                .replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(safe)\""
+        }
+
+        var rows: [String] = [
+            [escape("日期"), escape("金额"), escape("商户"),
+             escape("分类"), escape("备注"), escape("记账成员")].joined(separator: ",")
+        ]
+        for record in records {
+            let row = [
+                escape(record.displayDate),
+                escape(String(format: "%.2f", record.amount)),
+                escape(record.merchant),
+                escape(record.category),
+                escape(record.notes ?? ""),
+                escape(record.userName)
+            ].joined(separator: ",")
+            rows.append(row)
+        }
+        let csv = rows.joined(separator: "\r\n")
 
         let filename = "plutus_records_\(Int(Date().timeIntervalSince1970)).csv"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
@@ -101,4 +144,5 @@ private struct ShareSheet: UIViewControllerRepresentable {
 
 #Preview {
     RecordsView()
+        .environmentObject(AppSettings())
 }

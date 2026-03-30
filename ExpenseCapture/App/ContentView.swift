@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("setup_wizard_completed") private var wizardCompleted = false
-    @StateObject private var settings = AppSettings()
+    @AppStorage(AppSettings.wizardCompletedKey) private var wizardCompleted = false
+    @StateObject private var settings = AppSettings.shared
 
     var body: some View {
         TabView {

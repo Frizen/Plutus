@@ -75,6 +75,8 @@ private struct GLMResponseMessage: Decodable {
 
 class GLMVisionService {
 
+    static let shared = GLMVisionService()
+
     private let apiEndpoint = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     private let model = "glm-4v-flash"
     private let maxImageDimension: CGFloat = 1024
@@ -186,7 +188,10 @@ class GLMVisionService {
             temperature: 0.1
         )
 
-        var request = URLRequest(url: URL(string: apiEndpoint)!)
+        guard let url = URL(string: apiEndpoint) else {
+            throw GLMVisionError.decodingFailed("API 端点格式错误")
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -219,6 +224,7 @@ class GLMVisionService {
     private func parseJSON<T: Decodable>(from text: String, as type: T.Type) throws -> T {
         var jsonString = text.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // 1. 剥除 markdown 代码块
         if let range = jsonString.range(of: "```json") {
             jsonString = String(jsonString[range.upperBound...])
             if let end = jsonString.range(of: "```") {
@@ -231,9 +237,9 @@ class GLMVisionService {
             }
         }
 
-        if let start = jsonString.firstIndex(of: "{"),
-           let end = jsonString.lastIndex(of: "}") {
-            jsonString = String(jsonString[start...end])
+        // 2. 用括号计数法提取最外层 JSON 对象，避免 notes 字段含 {} 时截断错误
+        if let extracted = extractOutermostObject(from: jsonString) {
+            jsonString = extracted
         }
 
         jsonString = jsonString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -249,6 +255,34 @@ class GLMVisionService {
         }
     }
 
+    /// 用括号计数法找到字符串中第一个完整的 JSON 对象 `{ ... }`，
+    /// 正确处理嵌套括号和字符串内的括号字符。
+    private func extractOutermostObject(from text: String) -> String? {
+        var depth = 0
+        var startIndex: String.Index? = nil
+        var inString = false
+        var escaped = false
+
+        for idx in text.indices {
+            let ch = text[idx]
+            if escaped { escaped = false; continue }
+            if ch == "\\" && inString { escaped = true; continue }
+            if ch == "\"" { inString.toggle(); continue }
+            if inString { continue }
+
+            if ch == "{" {
+                if depth == 0 { startIndex = idx }
+                depth += 1
+            } else if ch == "}" {
+                depth -= 1
+                if depth == 0, let start = startIndex {
+                    return String(text[start...idx])
+                }
+            }
+        }
+        return nil
+    }
+
     private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
         let size = image.size
         let maxSide = max(size.width, size.height)
@@ -257,9 +291,9 @@ class GLMVisionService {
         let scale = maxDimension / maxSide
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
 
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-        defer { UIGraphicsEndImageContext() }
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        return UIGraphicsGetImageFromCurrentImageContext() ?? image
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
     }
 }

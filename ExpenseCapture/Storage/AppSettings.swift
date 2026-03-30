@@ -1,7 +1,20 @@
 import Foundation
 import SwiftUI
 
+// MARK: - 全局 key 常量，避免多处硬编码字符串
+
+extension AppSettings {
+    /// setup_wizard_completed 的 UserDefaults key，供外部（SettingsView 等）统一引用
+    static let wizardCompletedKey = "setup_wizard_completed"
+}
+
 class AppSettings: ObservableObject {
+
+    // MARK: - 单例
+    // UI 层通过 .environmentObject(AppSettings.shared) 注入；
+    // Intent 里也使用同一实例（同进程时共享；Extension 进程独立，只读 UserDefaults）
+    static let shared = AppSettings()
+
     // GLM (智谱 AI)
     @AppStorage("glm_api_key") var glmAPIKey: String = ""
 

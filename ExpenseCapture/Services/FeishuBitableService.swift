@@ -34,6 +34,13 @@ enum FeishuError: LocalizedError {
                 return "飞书授权已过期，请重新配置"
             case 500, 502, 503:
                 return "飞书服务暂时不可用，请稍后重试"
+            // 飞书业务层错误码
+            case 1254016, 1254610:
+                return "字段名不匹配，请检查「配置 → 字段名映射」与飞书表格列名是否一致"
+            case 1254002, 1254003:
+                return "多维表格不存在或已被删除，请重新配置表格链接"
+            case 1254704:
+                return "没有表格编辑权限，请确认飞书应用权限配置"
             default:
                 return "飞书同步失败（错误 \(code)），请稍后重试"
             }
@@ -116,7 +123,13 @@ class FeishuBitableService {
     private let tokenTimeout: TimeInterval = 15   // Token 请求（轻量）
     private let recordTimeout: TimeInterval = 20  // 记录读写 / 建表等操作
 
-    private var tokenCache: TokenCache?
+    // MARK: Token 缓存（NSLock 保护，防止并发多次刷新）
+    private let tokenLock = NSLock()
+    private var _tokenCache: TokenCache?
+    private var tokenCache: TokenCache? {
+        get { tokenLock.withLock { _tokenCache } }
+        set { tokenLock.withLock { _tokenCache = newValue } }
+    }
 
     private init() {}
 
@@ -142,7 +155,10 @@ class FeishuBitableService {
     private func fetchFreshToken(appID: String, appSecret: String) async throws -> String {
         let requestBody = TenantTokenRequest(app_id: appID, app_secret: appSecret)
 
-        var request = URLRequest(url: URL(string: tokenEndpoint)!)
+        guard let tokenURL = URL(string: tokenEndpoint) else {
+            throw FeishuError.encodingFailed
+        }
+        var request = URLRequest(url: tokenURL)
         request.httpMethod = "POST"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(requestBody)
@@ -278,7 +294,9 @@ class FeishuBitableService {
 
     /// 获取应用在飞书云空间的根目录 token，用于指定复制文件的目标位置。
     private func getRootFolderToken(token: String) async throws -> String {
-        let url = URL(string: "https://open.feishu.cn/open-apis/drive/explorer/v2/root_folder/meta")!
+        guard let url = URL(string: "https://open.feishu.cn/open-apis/drive/explorer/v2/root_folder/meta") else {
+            throw FeishuError.encodingFailed
+        }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = recordTimeout
@@ -298,7 +316,9 @@ class FeishuBitableService {
     private func copyBitableFromTemplate(token: String, folderToken: String) async throws -> String {
         // 模板表格：https://i7zbvqw45v.feishu.cn/base/YJY0b3H6BagPM1sDj7Vcy7mGnOf
         let templateToken = "YJY0b3H6BagPM1sDj7Vcy7mGnOf"
-        let url = URL(string: "https://open.feishu.cn/open-apis/drive/v1/files/\(templateToken)/copy")!
+        guard let url = URL(string: "https://open.feishu.cn/open-apis/drive/v1/files/\(templateToken)/copy") else {
+            throw FeishuError.encodingFailed
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
@@ -325,7 +345,9 @@ class FeishuBitableService {
     private func getFirstTableID(token: String, appToken: String) async throws -> String {
         // 复制模板后后端异步初始化，items 可能暂时为空。
         // 最多重试 8 次，每次间隔 1.5s（总等待上限约 10.5s）。
-        let url = URL(string: "\(bitableEndpoint)/\(appToken)/tables")!
+        guard let url = URL(string: "\(bitableEndpoint)/\(appToken)/tables") else {
+            throw FeishuError.encodingFailed
+        }
         var lastError: Error = FeishuError.decodingFailed("无法获取 Table ID")
 
         for attempt in 1...8 {
