@@ -7,12 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0FDCFD6D7AF6CEB3A32B6B7E /* JSONParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48BC8F55AC64F1681FCBA112 /* JSONParsingTests.swift */; };
 		25AC09A94A6C83A805DDA943 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FBBA43155372231E4B86F6 /* SettingsView.swift */; };
 		297D631CBABB82013B9D2C91 /* RecordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F33F9BDBB231287BCE906A1B /* RecordsView.swift */; };
+		2D21D7DD7DCA50D14C319CE5 /* SetupWizardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E56DB4762B824DDE57E6BF3 /* SetupWizardView.swift */; };
 		473CE399EEB099D2368B59CA /* ExpenseCaptureApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 209C2709AAB2B3DDE353AA00 /* ExpenseCaptureApp.swift */; };
+		6422C56E51FC6D8522F73CA3 /* AppSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F750C0E443D8458F28360B0 /* AppSettingsTests.swift */; };
 		81AC3D4DEB6C3EB55AAF0C5C /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0064D04BC666479A59DC651 /* LogView.swift */; };
+		90828B36415259B3B8641452 /* DateParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E1436D900FC0770917E9D55 /* DateParsingTests.swift */; };
 		922FD1EE2E418887E240B9BC /* IntentLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F084DC6D3603B05311DF2E /* IntentLogger.swift */; };
 		962B531BEE2605A6871F37DC /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 954B80F58D5BF59A2424342E /* AppSettings.swift */; };
+		B11E299E34F6D5F2426A8447 /* ExpenseRecordTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC660B0382458A8861383E06 /* ExpenseRecordTests.swift */; };
 		BBE78BB2C5249FFFE499418B /* ExpenseRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93150EB6F7A1762AF201FD2F /* ExpenseRecord.swift */; };
 		D6C15918552FFC8662A94961 /* GLMVisionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B6A4250430573EFE55A1F3 /* GLMVisionService.swift */; };
 		E59A5AAEF7B5EEBEF67C5BE2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 122813F9D0EE911DFDDBFF8D /* Assets.xcassets */; };
@@ -21,17 +26,33 @@
 		F84EA5DE012BDEC34AB39AE5 /* FeishuBitableService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15DC166C51AF1BAB87EBF198 /* FeishuBitableService.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		5E7B712539A580E64EFB2FB0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2AB294ABC1021CCA3C5CFD93 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 956B42C178AFB64CFE890C62;
+			remoteInfo = ExpenseCapture;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		0E56DB4762B824DDE57E6BF3 /* SetupWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupWizardView.swift; sourceTree = "<group>"; };
+		0F750C0E443D8458F28360B0 /* AppSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsTests.swift; sourceTree = "<group>"; };
 		122813F9D0EE911DFDDBFF8D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		15DC166C51AF1BAB87EBF198 /* FeishuBitableService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeishuBitableService.swift; sourceTree = "<group>"; };
 		209C2709AAB2B3DDE353AA00 /* ExpenseCaptureApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseCaptureApp.swift; sourceTree = "<group>"; };
 		2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExpenseCapture.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		48BC8F55AC64F1681FCBA112 /* JSONParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONParsingTests.swift; sourceTree = "<group>"; };
 		54244111B9A117B06CE7847B /* AnalyzeExpenseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeExpenseIntent.swift; sourceTree = "<group>"; };
+		679E65A5BE392C5E4E8D6EC4 /* ExpenseCaptureTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ExpenseCaptureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E1436D900FC0770917E9D55 /* DateParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateParsingTests.swift; sourceTree = "<group>"; };
 		824A2988FBC05373274B37B9 /* ExpenseCapture.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ExpenseCapture.entitlements; sourceTree = "<group>"; };
 		93150EB6F7A1762AF201FD2F /* ExpenseRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseRecord.swift; sourceTree = "<group>"; };
 		94FBBA43155372231E4B86F6 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		954B80F58D5BF59A2424342E /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		A7F084DC6D3603B05311DF2E /* IntentLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentLogger.swift; sourceTree = "<group>"; };
+		AC660B0382458A8861383E06 /* ExpenseRecordTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseRecordTests.swift; sourceTree = "<group>"; };
 		B0064D04BC666479A59DC651 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		B5F26C015F1210C7C1575242 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		E3B6A4250430573EFE55A1F3 /* GLMVisionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GLMVisionService.swift; sourceTree = "<group>"; };
@@ -73,10 +94,22 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		7B292D5838384B14D1FE067D /* ExpenseCaptureTests */ = {
+			isa = PBXGroup;
+			children = (
+				0F750C0E443D8458F28360B0 /* AppSettingsTests.swift */,
+				6E1436D900FC0770917E9D55 /* DateParsingTests.swift */,
+				AC660B0382458A8861383E06 /* ExpenseRecordTests.swift */,
+				48BC8F55AC64F1681FCBA112 /* JSONParsingTests.swift */,
+			);
+			path = ExpenseCaptureTests;
+			sourceTree = "<group>";
+		};
 		B8201E6BF03A69EDB43EE16B /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */,
+				679E65A5BE392C5E4E8D6EC4 /* ExpenseCaptureTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -89,6 +122,7 @@
 				B0064D04BC666479A59DC651 /* LogView.swift */,
 				F33F9BDBB231287BCE906A1B /* RecordsView.swift */,
 				94FBBA43155372231E4B86F6 /* SettingsView.swift */,
+				0E56DB4762B824DDE57E6BF3 /* SetupWizardView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -111,6 +145,7 @@
 			isa = PBXGroup;
 			children = (
 				DEA05F450F859CAA67D64F62 /* ExpenseCapture */,
+				7B292D5838384B14D1FE067D /* ExpenseCaptureTests */,
 				B8201E6BF03A69EDB43EE16B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -136,6 +171,24 @@
 			productReference = 2F5B6BCF0039AAE1B7E434CB /* ExpenseCapture.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D867CF2AB22F393F73A46C84 /* ExpenseCaptureTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 59BBBDAB034F5A2FFF5B3CC5 /* Build configuration list for PBXNativeTarget "ExpenseCaptureTests" */;
+			buildPhases = (
+				F1FB6C593763F8F0F1FC92FC /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6EDF16B43C4A2D6B6272E762 /* PBXTargetDependency */,
+			);
+			name = ExpenseCaptureTests;
+			packageProductDependencies = (
+			);
+			productName = ExpenseCaptureTests;
+			productReference = 679E65A5BE392C5E4E8D6EC4 /* ExpenseCaptureTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -143,10 +196,13 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					956B42C178AFB64CFE890C62 = {
 						ProvisioningStyle = Automatic;
+					};
+					D867CF2AB22F393F73A46C84 = {
+						DevelopmentTeam = "";
 					};
 				};
 			};
@@ -165,6 +221,7 @@
 			projectRoot = "";
 			targets = (
 				956B42C178AFB64CFE890C62 /* ExpenseCapture */,
+				D867CF2AB22F393F73A46C84 /* ExpenseCaptureTests */,
 			);
 		};
 /* End PBXProject section */
@@ -196,10 +253,30 @@
 				81AC3D4DEB6C3EB55AAF0C5C /* LogView.swift in Sources */,
 				297D631CBABB82013B9D2C91 /* RecordsView.swift in Sources */,
 				25AC09A94A6C83A805DDA943 /* SettingsView.swift in Sources */,
+				2D21D7DD7DCA50D14C319CE5 /* SetupWizardView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1FB6C593763F8F0F1FC92FC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6422C56E51FC6D8522F73CA3 /* AppSettingsTests.swift in Sources */,
+				90828B36415259B3B8641452 /* DateParsingTests.swift in Sources */,
+				B11E299E34F6D5F2426A8447 /* ExpenseRecordTests.swift in Sources */,
+				0FDCFD6D7AF6CEB3A32B6B7E /* JSONParsingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6EDF16B43C4A2D6B6272E762 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 956B42C178AFB64CFE890C62 /* ExpenseCapture */;
+			targetProxy = 5E7B712539A580E64EFB2FB0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1A78029A2321340AA041CCBC /* Debug */ = {
@@ -238,7 +315,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = CVVVNK6HVK;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -263,7 +340,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.9;
@@ -277,6 +353,7 @@
 				CODE_SIGN_ENTITLEMENTS = ExpenseCapture/ExpenseCapture.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = CVVVNK6HVK;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = ExpenseCapture/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -290,6 +367,25 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
+		};
+		B2A3E86E6FE0D3CA45DDC425 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.expensecapture.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExpenseCapture.app/ExpenseCapture";
+			};
+			name = Debug;
 		};
 		C3404B044BBE91EF463AC202 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -327,7 +423,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = CVVVNK6HVK;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -345,7 +441,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
@@ -359,6 +454,7 @@
 				CODE_SIGN_ENTITLEMENTS = ExpenseCapture/ExpenseCapture.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = CVVVNK6HVK;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = ExpenseCapture/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -373,6 +469,25 @@
 			};
 			name = Debug;
 		};
+		D9BC6E2535AE6A97DE44B493 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.expensecapture.tests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ExpenseCapture.app/ExpenseCapture";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -381,6 +496,15 @@
 			buildConfigurations = (
 				C97F3E3874A6BE59F3470B51 /* Debug */,
 				4580E60E37506D5E6352819D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		59BBBDAB034F5A2FFF5B3CC5 /* Build configuration list for PBXNativeTarget "ExpenseCaptureTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B2A3E86E6FE0D3CA45DDC425 /* Debug */,
+				D9BC6E2535AE6A97DE44B493 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

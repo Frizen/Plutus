@@ -240,7 +240,7 @@ class FeishuBitableService {
 
     /// 把 GLM 返回的各种日期字符串解析为飞书要求的毫秒时间戳
     /// 解析失败时兜底返回当前时间戳
-    private func parseToTimestampMs(_ dateStr: String) -> Int {
+    func parseToTimestampMs(_ dateStr: String) -> Int {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
 

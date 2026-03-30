@@ -257,7 +257,7 @@ class GLMVisionService {
 
     /// 用括号计数法找到字符串中第一个完整的 JSON 对象 `{ ... }`，
     /// 正确处理嵌套括号和字符串内的括号字符。
-    private func extractOutermostObject(from text: String) -> String? {
+    func extractOutermostObject(from text: String) -> String? {
         var depth = 0
         var startIndex: String.Index? = nil
         var inString = false

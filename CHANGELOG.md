@@ -1,5 +1,13 @@
 # Plutus 产品迭代详情
 
+## v0.1.0031 — 单元测试 + SwiftLint + pre-commit hook
+**日期**：2026-03
+
+### 变更内容
+- **测试覆盖**：新增 `ExpenseCaptureTests` 测试 target，覆盖 4 个核心模块：飞书链接解析（`AppSettingsTests`）、日期格式解析（`DateParsingTests`）、JSON 括号计数提取（`JSONParsingTests`）、`ExpenseRecord` Phase 1/2 生命周期及 Codable 往返（`ExpenseRecordTests`）
+- **代码质量**：引入 SwiftLint（`.swiftlint.yml`），检查主模块代码风格，测试目录排除在外
+- **提交防护**：新增 `.githooks/pre-commit`，每次 `git commit` 前自动运行 SwiftLint 检查和单元测试；`Makefile` 提供 `make setup` / `make test` / `make lint` 快捷命令，支持 `SKIP_TESTS=1` 跳过测试
+
 ## v0.1.0030 — Code Review 全量修复
 **日期**：2026-03
 

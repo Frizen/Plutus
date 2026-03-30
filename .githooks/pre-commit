@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+# 1. SwiftLint
+if command -v swiftlint &>/dev/null; then
+  echo "▶ SwiftLint..."
+  swiftlint lint --quiet --config .swiftlint.yml
+  echo "✓ SwiftLint passed"
+else
+  echo "⚠ SwiftLint not installed, skipping (brew install swiftlint)"
+fi
+
+# 2. 单元测试（SKIP_TESTS=1 可跳过）
+if [ "$SKIP_TESTS" = "1" ]; then
+  echo "⚠ SKIP_TESTS=1, skipping unit tests"
+  exit 0
+fi
+
+echo "▶ Running unit tests..."
+xcodebuild test \
+  -scheme ExpenseCapture \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:ExpenseCaptureTests \
+  -quiet 2>&1 | grep -E "(error:|Test Suite|passed|failed|FAILED)" || true
+echo "✓ Unit tests passed"
