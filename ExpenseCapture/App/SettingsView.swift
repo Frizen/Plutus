@@ -82,15 +82,6 @@ struct SettingsView: View {
 
                         if let result = urlParseResult { testResultRow(result) }
 
-                        if !settings.bitableAppToken.isEmpty {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                Text("App Token: \(settings.bitableAppToken.prefix(12))…  Table ID: \(settings.tableID.prefix(12))…")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
                         Button {
                             Task { await testFeishuConnection() }
                         } label: {
@@ -166,6 +157,12 @@ struct SettingsView: View {
                             Text("清除所有配置与记录")
                         }
                     }
+                    .confirmationDialog("确认清除所有配置和本地记录？", isPresented: $showResetConfirm, titleVisibility: .visible) {
+                        Button("清除", role: .destructive) { resetAll() }
+                        Button("取消", role: .cancel) {}
+                    } message: {
+                        Text("此操作不可撤销，飞书中的数据不受影响。")
+                    }
                 }
             }
             .navigationTitle("配置")
@@ -178,11 +175,10 @@ struct SettingsView: View {
                     bitableURLInput = "https://feishu.cn/base/\(settings.bitableAppToken)?table=\(settings.tableID)"
                 }
             }
-            .confirmationDialog("确认清除所有配置和本地记录？", isPresented: $showResetConfirm, titleVisibility: .visible) {
-                Button("清除", role: .destructive) { resetAll() }
-                Button("取消", role: .cancel) {}
-            } message: {
-                Text("此操作不可撤销，飞书中的数据不受影响。")
+            .onChange(of: settings.bitableAppToken) { _, newToken in
+                if !newToken.isEmpty && !settings.tableID.isEmpty {
+                    bitableURLInput = "https://feishu.cn/base/\(newToken)?table=\(settings.tableID)"
+                }
             }
         }
     }
@@ -397,8 +393,14 @@ struct ExpenseRecordRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.merchant)
                     .font(.subheadline).fontWeight(.medium)
-                Text("\(record.category) · \(record.displayDate)")
-                    .font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text("\(record.category) · \(record.displayDate)")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if record.needsPhase2 {
+                        Text("· 分类待定")
+                            .font(.caption).foregroundStyle(.tertiary)
+                    }
+                }
             }
 
             Spacer()

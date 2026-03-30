@@ -12,12 +12,35 @@ enum FeishuError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .configMissing: return "飞书配置不完整，请检查 App ID / Secret / Bitable 配置"
-        case .tokenFetchFailed(let msg): return "获取飞书 Token 失败: \(msg)"
-        case .networkError(let e): return "网络错误: \(e.localizedDescription)"
-        case .invalidResponse(let code, let msg): return "飞书 API 错误 [\(code)]: \(msg)"
-        case .encodingFailed: return "请求编码失败"
-        case .decodingFailed(let msg): return "响应解析失败: \(msg)"
+        case .configMissing:
+            return "飞书配置不完整，请在配置页补充 App ID / Secret / 表格信息"
+        case .tokenFetchFailed(let msg):
+            // 解析飞书内部错误码，给出更具体的提示
+            if msg.contains("99991668") || msg.contains("99991663") || msg.contains("10003") {
+                return "飞书 App ID 或 Secret 不正确，请检查配置"
+            } else if msg.contains("99991664") {
+                return "飞书应用已被停用，请检查飞书后台"
+            }
+            return "飞书授权失败，请确认 App ID 和 App Secret 填写正确"
+        case .networkError:
+            return "网络连接失败，请检查网络后重试"
+        case .invalidResponse(let code, _):
+            switch code {
+            case 403:
+                return "没有访问权限，请确认飞书应用已开启相关权限"
+            case 429:
+                return "请求过于频繁，请稍后再试"
+            case 401:
+                return "飞书授权已过期，请重新配置"
+            case 500, 502, 503:
+                return "飞书服务暂时不可用，请稍后重试"
+            default:
+                return "飞书同步失败（错误 \(code)），请稍后重试"
+            }
+        case .encodingFailed:
+            return "请求编码失败，请重试"
+        case .decodingFailed:
+            return "飞书返回数据格式异常，请稍后重试"
         }
     }
 }
@@ -89,6 +112,10 @@ class FeishuBitableService {
     private let tokenEndpoint = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
     private let bitableEndpoint = "https://open.feishu.cn/open-apis/bitable/v1/apps"
 
+    // MARK: 超时常量
+    private let tokenTimeout: TimeInterval = 15   // Token 请求（轻量）
+    private let recordTimeout: TimeInterval = 20  // 记录读写 / 建表等操作
+
     private var tokenCache: TokenCache?
 
     private init() {}
@@ -119,6 +146,7 @@ class FeishuBitableService {
         request.httpMethod = "POST"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(requestBody)
+        request.timeoutInterval = tokenTimeout
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -169,6 +197,7 @@ class FeishuBitableService {
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(requestBody)
+        request.timeoutInterval = recordTimeout
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -236,48 +265,76 @@ class FeishuBitableService {
 
     // MARK: - Create Expense Bitable (Wizard Setup)
 
-    /// 创建一个新的多维表格 App，建立记账所需字段，并开放「所有人可编辑」权限。
+    /// 从模板复制一个新的多维表格，并开放「互联网所有人可编辑」权限。
     /// 返回 (appToken, tableID)，权限设置失败时静默忽略。
     func createExpenseBitable(appID: String, appSecret: String) async throws -> (appToken: String, tableID: String) {
-        let token = try await fetchFreshToken(appID: appID, appSecret: appSecret)
-        let appToken = try await createBitableApp(token: token)
-        let tableID  = try await getFirstTableID(token: token, appToken: appToken)
-        try await createExpenseFields(token: token, appToken: appToken, tableID: tableID)
+        let token      = try await fetchFreshToken(appID: appID, appSecret: appSecret)
+        let folderToken = try await getRootFolderToken(token: token)
+        let appToken   = try await copyBitableFromTemplate(token: token, folderToken: folderToken)
+        let tableID    = try await getFirstTableID(token: token, appToken: appToken)
         try? await setPublicEditPermission(token: token, appToken: appToken)
         return (appToken, tableID)
     }
 
-    private func createBitableApp(token: String) async throws -> String {
-        var request = URLRequest(url: URL(string: bitableEndpoint)!)
-        request.httpMethod = "POST"
-        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+    /// 获取应用在飞书云空间的根目录 token，用于指定复制文件的目标位置。
+    private func getRootFolderToken(token: String) async throws -> String {
+        let url = URL(string: "https://open.feishu.cn/open-apis/drive/explorer/v2/root_folder/meta")!
+        var request = URLRequest(url: url)
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["name": "Plutus 测试记账"])
+        request.timeoutInterval = recordTimeout
 
         let (data, _) = try await URLSession.shared.data(for: request)
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard let code = json?["code"] as? Int, code == 0,
               let dataObj = json?["data"] as? [String: Any],
-              let app = dataObj["app"] as? [String: Any],
-              let appToken = app["app_token"] as? String else {
+              let folderToken = dataObj["token"] as? String else {
             let msg = (json?["msg"] as? String) ?? "解析失败"
-            throw FeishuError.invalidResponse(-1, "创建多维表格失败: \(msg)")
+            throw FeishuError.invalidResponse(-1, "获取根目录失败: \(msg)")
         }
-        return appToken
+        return folderToken
+    }
+
+    /// 从固定模板复制一份新的多维表格，返回新表格的 appToken。
+    private func copyBitableFromTemplate(token: String, folderToken: String) async throws -> String {
+        // 模板表格：https://i7zbvqw45v.feishu.cn/base/YJY0b3H6BagPM1sDj7Vcy7mGnOf
+        let templateToken = "YJY0b3H6BagPM1sDj7Vcy7mGnOf"
+        let url = URL(string: "https://open.feishu.cn/open-apis/drive/v1/files/\(templateToken)/copy")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "name":         "Plutus 记账",
+            "type":         "bitable",
+            "folder_token": folderToken
+        ])
+        request.timeoutInterval = recordTimeout
+
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let code = json?["code"] as? Int, code == 0,
+              let dataObj = json?["data"] as? [String: Any],
+              let file = dataObj["file"] as? [String: Any],
+              let newToken = file["token"] as? String else {
+            let msg = (json?["msg"] as? String) ?? "解析失败"
+            throw FeishuError.invalidResponse(-1, "复制模板失败: \(msg)")
+        }
+        return newToken
     }
 
     private func getFirstTableID(token: String, appToken: String) async throws -> String {
-        // 飞书建表是异步的，接口返回后后端仍在初始化，items 可能暂时为空。
-        // 最多重试 3 次，每次间隔 800ms。
+        // 复制模板后后端异步初始化，items 可能暂时为空。
+        // 最多重试 8 次，每次间隔 1.5s（总等待上限约 10.5s）。
         let url = URL(string: "\(bitableEndpoint)/\(appToken)/tables")!
         var lastError: Error = FeishuError.decodingFailed("无法获取 Table ID")
 
-        for attempt in 1...3 {
+        for attempt in 1...8 {
             if attempt > 1 {
-                try await Task.sleep(nanoseconds: 800_000_000) // 0.8s
+                try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
             }
             var request = URLRequest(url: url)
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.timeoutInterval = recordTimeout
 
             let (data, _) = try await URLSession.shared.data(for: request)
             let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -288,37 +345,11 @@ class FeishuBitableService {
                let tableID = first["table_id"] as? String {
                 return tableID
             }
-            lastError = FeishuError.decodingFailed("无法获取 Table ID（尝试 \(attempt)/3）")
+            let rawMsg = (json?["msg"] as? String) ?? (String(data: data, encoding: .utf8) ?? "空响应")
+            IntentLogger.shared.log("getFirstTableID 尝试 \(attempt)/8 未就绪：\(rawMsg)", level: .warning)
+            lastError = FeishuError.decodingFailed("无法获取 Table ID（尝试 \(attempt)/8）")
         }
         throw lastError
-    }
-
-    private func createExpenseFields(token: String, appToken: String, tableID: String) async throws {
-        let url = URL(string: "\(bitableEndpoint)/\(appToken)/tables/\(tableID)/fields")!
-
-        // type 2 = 数字, type 1 = 多行文本, type 5 = 日期时间
-        let fieldDefs: [[String: Any]] = [
-            ["field_name": "金额",     "type": 2, "property": ["formatter": "0.00"]],
-            ["field_name": "商户",     "type": 1],
-            ["field_name": "日期",     "type": 5, "property": ["date_formatter": "yyyy/MM/dd HH:mm", "auto_fill": false]],
-            ["field_name": "备注",     "type": 1],
-            ["field_name": "记账成员", "type": 1],
-        ]
-
-        // 并发创建所有字段，比串行快 4-5 倍
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            for fieldDef in fieldDefs {
-                group.addTask {
-                    var request = URLRequest(url: url)
-                    request.httpMethod = "POST"
-                    request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
-                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                    request.httpBody = try JSONSerialization.data(withJSONObject: fieldDef)
-                    _ = try await URLSession.shared.data(for: request)
-                }
-            }
-            try await group.waitForAll()
-        }
     }
 
     private func setPublicEditPermission(token: String, appToken: String) async throws {
@@ -327,12 +358,13 @@ class FeishuBitableService {
         request.httpMethod = "PATCH"
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = recordTimeout
         let body: [String: Any] = [
             "external_access_entity": "open",
             "security_entity":        "anyone_can_edit",
             "comment_entity":         "anyone_can_view",
             "share_entity":           "anyone",
-            "link_share_entity":      "tenant_readable",
+            "link_share_entity":      "anyone_editable",
             "invite_external":        true
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

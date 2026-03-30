@@ -27,14 +27,15 @@ struct ExpenseRecord: Codable, Identifiable {
     var notes: String?
     let recordedAt: Date
     var userName: String       // 记账成员，旧记录解码时为空字符串
+    var needsPhase2: Bool      // Phase 2 尚未完成时为 true，用于 UI 展示「分类待定」
 
     // CodingKeys：保持 JSON key 为 "subCategory"，兼容旧版本本地存储
     enum CodingKeys: String, CodingKey {
-        case id, amount, currency, merchant, transactionDate, notes, recordedAt, userName
+        case id, amount, currency, merchant, transactionDate, notes, recordedAt, userName, needsPhase2
         case category = "subCategory"
     }
 
-    // 自定义解码：userName 为新字段，旧数据中不存在时默认空字符串
+    // 自定义解码：userName / needsPhase2 为新字段，旧数据中不存在时使用默认值
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id              = try c.decode(UUID.self,   forKey: .id)
@@ -46,9 +47,10 @@ struct ExpenseRecord: Codable, Identifiable {
         notes           = try c.decodeIfPresent(String.self, forKey: .notes)
         recordedAt      = try c.decode(Date.self,   forKey: .recordedAt)
         userName        = (try? c.decodeIfPresent(String.self, forKey: .userName)) ?? ""
+        needsPhase2     = (try? c.decodeIfPresent(Bool.self, forKey: .needsPhase2)) ?? false
     }
 
-    // Phase 1：仅核心字段，分类待补全
+    // Phase 1：仅核心字段，分类待补全（needsPhase2 = true 表示 Phase 2 尚未完成）
     init(from core: CoreExtraction, userName: String = "") {
         self.id = UUID()
         self.amount = abs(core.amount)
@@ -59,13 +61,15 @@ struct ExpenseRecord: Codable, Identifiable {
         self.notes = nil
         self.recordedAt = Date()
         self.userName = userName
+        self.needsPhase2 = true
     }
 
-    // Phase 2：用详情字段生成更新后的副本
+    // Phase 2：用详情字段生成更新后的副本，同时清除 needsPhase2 标记
     func withDetail(_ detail: DetailExtraction) -> ExpenseRecord {
         var updated = self
         updated.category = detail.subCategory.isEmpty ? "其他" : detail.subCategory
         updated.notes = detail.notes
+        updated.needsPhase2 = false
         return updated
     }
 

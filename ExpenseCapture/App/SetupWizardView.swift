@@ -162,14 +162,13 @@ private struct WizardPageContainer<Content: View, BottomContent: View>: View {
                 .padding(.bottom, 24)
             }
 
-            // 底部按钮：固定在底部，顶部加分割线
+            // 底部按钮：固定在底部
             VStack(spacing: 10) {
                 bottomContent()
             }
             .padding(.horizontal, 28)
             .padding(.top, 12)
             .padding(.bottom, 28)
-            .overlay(alignment: .top) { Divider() }
         }
         .background(Color(.systemBackground))
     }
@@ -431,20 +430,44 @@ private struct WizardFeishuPage: View {
     @ObservedObject var settings: AppSettings
     let onNext: () -> Void
 
-    @State private var docMode: FeishuDocMode = .unselected
-    @State private var isCreatingDoc = false
-    @State private var createDocResult: WizardTestResult?
+    // MARK: - 状态结构体（替代 7 个独立 @State）
 
-    @State private var bitableURLInput: String = ""
-    @State private var urlParseResult: WizardTestResult?
-    @State private var isTestingFeishu = false
-    @State private var feishuTestResult: WizardTestResult?
+    private struct FeishuSetupState {
+        var docMode: FeishuDocMode = .unselected
+        var isCreatingDoc = false
+        var createDocResult: WizardTestResult? = nil
+        var bitableURLInput: String = ""
+        var urlParseResult: WizardTestResult? = nil
+        var isTestingFeishu = false
+        var feishuTestResult: WizardTestResult? = nil
+
+        mutating func resetOnToggleOff() {
+            docMode = .unselected
+            createDocResult = nil
+            feishuTestResult = nil
+        }
+
+        mutating func switchToTestDoc() {
+            urlParseResult = nil
+            feishuTestResult = nil
+            createDocResult = nil
+            docMode = .testDoc
+        }
+
+        mutating func switchToOwnDoc() {
+            createDocResult = nil
+            feishuTestResult = nil
+            docMode = .ownDoc
+        }
+    }
+
+    @State private var state = FeishuSetupState()
 
     private var canProceed: Bool {
         guard settings.feishuSyncEnabled else { return true }
-        switch docMode {
+        switch state.docMode {
         case .unselected: return false
-        case .testDoc:    return createDocResult?.success == true
+        case .testDoc:    return state.createDocResult?.success == true
         case .ownDoc:
             return !settings.feishuAppID.trimmingCharacters(in: .whitespaces).isEmpty &&
                    !settings.feishuAppSecret.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -480,11 +503,7 @@ private struct WizardFeishuPage: View {
             .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onChange(of: settings.feishuSyncEnabled) { _, enabled in
-                if !enabled {
-                    docMode = .unselected
-                    createDocResult = nil
-                    feishuTestResult = nil
-                }
+                if !enabled { state.resetOnToggleOff() }
             }
 
             if settings.feishuSyncEnabled {
@@ -496,7 +515,7 @@ private struct WizardFeishuPage: View {
                     Task { await handleNext() }
                 } label: {
                     HStack(spacing: 8) {
-                        if isTestingFeishu {
+                        if state.isTestingFeishu {
                             ProgressView().scaleEffect(0.8).tint(.white)
                         }
                         Text("下一步")
@@ -504,9 +523,9 @@ private struct WizardFeishuPage: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(isTestingFeishu || !canProceed)
+                .disabled(state.isTestingFeishu || !canProceed)
 
-                if let result = feishuTestResult, !result.success {
+                if let result = state.feishuTestResult, !result.success {
                     wizardTestResultRow(result)
                 }
             }
@@ -514,15 +533,15 @@ private struct WizardFeishuPage: View {
         .onAppear {
             // 右滑返回时恢复表格链接显示
             if !settings.bitableAppToken.isEmpty && !settings.tableID.isEmpty {
-                bitableURLInput = "https://feishu.cn/base/\(settings.bitableAppToken)?table=\(settings.tableID)"
+                state.bitableURLInput = "https://feishu.cn/base/\(settings.bitableAppToken)?table=\(settings.tableID)"
             }
             // 右滑返回时恢复已选择的 docMode
-            if docMode == .unselected {
+            if state.docMode == .unselected {
                 if settings.feishuAppID == kFeishuTestAppID && !settings.bitableAppToken.isEmpty {
-                    docMode = .testDoc
-                    createDocResult = WizardTestResult(success: true, message: "")
+                    state.docMode = .testDoc
+                    state.createDocResult = WizardTestResult(success: true, message: "")
                 } else if !settings.feishuAppID.isEmpty {
-                    docMode = .ownDoc
+                    state.docMode = .ownDoc
                 }
             }
         }
@@ -532,37 +551,32 @@ private struct WizardFeishuPage: View {
     private var feishuDocModeSelector: some View {
         VStack(spacing: 12) {
             feishuModeButton(
-                selected: docMode == .testDoc,
+                selected: state.docMode == .testDoc,
                 icon: "sparkles",
                 title: "使用测试多维表格",
                 subtitle: "自动创建一张测试表格，仅用于测试体验"
             ) {
-                docMode = .testDoc
-                urlParseResult = nil
-                feishuTestResult = nil
-                createDocResult = nil
+                state.switchToTestDoc()
             }
 
             feishuModeButton(
-                selected: docMode == .ownDoc,
+                selected: state.docMode == .ownDoc,
                 icon: "key.fill",
                 title: "使用我自己的飞书多维表格",
                 subtitle: "需要填写 App ID / App Secret 和表格链接"
             ) {
-                if docMode == .testDoc {
+                if state.docMode == .testDoc {
                     settings.feishuAppID     = ""
                     settings.feishuAppSecret = ""
                     settings.bitableAppToken = ""
                     settings.tableID         = ""
-                    bitableURLInput          = ""
+                    state.bitableURLInput    = ""
                 }
-                docMode = .ownDoc
-                createDocResult  = nil
-                feishuTestResult = nil
+                state.switchToOwnDoc()
             }
 
-            if docMode == .testDoc { testDocContent }
-            if docMode == .ownDoc  { ownDocContent  }
+            if state.docMode == .testDoc { testDocContent }
+            if state.docMode == .ownDoc  { ownDocContent  }
         }
     }
 
@@ -570,18 +584,22 @@ private struct WizardFeishuPage: View {
     private var testDocContent: some View {
         VStack(spacing: 12) {
             Button {
-                guard createDocResult == nil else { return }
+                guard state.createDocResult?.success != true else { return }
+                state.createDocResult = nil
                 Task { await createTestDoc() }
             } label: {
                 ZStack {
-                    if let result = createDocResult {
+                    if let result = state.createDocResult {
                         HStack(spacing: 8) {
                             Image(systemName: result.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                                 .foregroundStyle(result.success ? .green : .red)
                             Text(result.success ? "已创建测试表格" : result.message)
                                 .foregroundStyle(result.success ? Color.primary : Color.red)
+                                .lineLimit(3)
+                                .multilineTextAlignment(.leading)
+                                .font(.caption)
                         }
-                    } else if isCreatingDoc {
+                    } else if state.isCreatingDoc {
                         HStack(spacing: 8) {
                             ProgressView()
                                 .scaleEffect(0.7)
@@ -599,7 +617,7 @@ private struct WizardFeishuPage: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
-            .disabled(isCreatingDoc || createDocResult != nil)
+            .disabled(state.isCreatingDoc || state.createDocResult?.success == true)
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "exclamationmark.triangle")
@@ -622,10 +640,10 @@ private struct WizardFeishuPage: View {
         VStack(spacing: 10) {
             wizardLabeledField(label: "App ID",     placeholder: "cli_...", text: $settings.feishuAppID,     isSecure: false)
             wizardLabeledField(label: "App Secret", placeholder: "密钥",   text: $settings.feishuAppSecret, isSecure: true)
-            wizardLabeledField(label: "表格链接",   placeholder: "https://xxx.feishu.cn/base/...", text: $bitableURLInput, isSecure: false)
-                .onChange(of: bitableURLInput) { _, newValue in parseBitableURL(newValue) }
+            wizardLabeledField(label: "表格链接",   placeholder: "https://xxx.feishu.cn/base/...", text: $state.bitableURLInput, isSecure: false)
+                .onChange(of: state.bitableURLInput) { _, newValue in parseBitableURL(newValue) }
 
-            if let result = urlParseResult {
+            if let result = state.urlParseResult {
                 wizardTestResultRow(result)
             }
         }
@@ -684,10 +702,10 @@ private struct WizardFeishuPage: View {
     }
 
     private func handleNext() async {
-        guard docMode == .ownDoc && settings.isFeishuConfigured else { onNext(); return }
-        isTestingFeishu = true
-        feishuTestResult = nil
-        defer { isTestingFeishu = false }
+        guard state.docMode == .ownDoc && settings.isFeishuConfigured else { onNext(); return }
+        state.isTestingFeishu = true
+        state.feishuTestResult = nil
+        defer { state.isTestingFeishu = false }
         do {
             _ = try await FeishuBitableService.shared.testConnection(
                 appID: settings.feishuAppID, appSecret: settings.feishuAppSecret,
@@ -695,13 +713,13 @@ private struct WizardFeishuPage: View {
             )
             onNext()
         } catch {
-            feishuTestResult = WizardTestResult(success: false, message: "连接失败：\(error.localizedDescription)")
+            state.feishuTestResult = WizardTestResult(success: false, message: "连接失败：\(error.localizedDescription)")
         }
     }
 
     private func createTestDoc() async {
-        isCreatingDoc = true
-        defer { isCreatingDoc = false }
+        state.isCreatingDoc = true
+        defer { state.isCreatingDoc = false }
         do {
             let (appToken, tableID) = try await FeishuBitableService.shared.createExpenseBitable(
                 appID: kFeishuTestAppID, appSecret: kFeishuTestAppSecret
@@ -710,18 +728,18 @@ private struct WizardFeishuPage: View {
             settings.feishuAppSecret = kFeishuTestAppSecret
             settings.bitableAppToken = appToken
             settings.tableID         = tableID
-            createDocResult = WizardTestResult(success: true, message: "")
+            state.createDocResult = WizardTestResult(success: true, message: "")
         } catch {
-            createDocResult = WizardTestResult(success: false, message: "创建失败: \(error.localizedDescription)")
+            state.createDocResult = WizardTestResult(success: false, message: "创建失败: \(error.localizedDescription)")
         }
     }
 
     private func parseBitableURL(_ urlString: String) {
         guard let result = settings.parseBitableURL(urlString) else {
-            urlParseResult = nil
+            state.urlParseResult = nil
             return
         }
-        urlParseResult = WizardTestResult(success: result.success, message: result.message)
+        state.urlParseResult = WizardTestResult(success: result.success, message: result.message)
     }
 }
 
